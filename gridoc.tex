@@ -1,0 +1,459 @@
+\chyph % use csplain
+
+\magnification\magstephalf
+
+\font\bbbf = csb10 scaled \magstep3
+\font\bbf  = csb10 scaled \magstep1
+
+\advance\vsize by1\baselineskip
+
+\def\titul #1\par {\line{\hss\bbbf #1\hss}\medskip}
+\def\tit #1\par {\bigskip{\bbf #1}\par\nobreak\medskip\noindent}
+\def\para #1 #2 #3\par {\par\smallskip
+   {\noindent{\tt #1 #2}\hfill #3\leftskip=0pt \par}
+   \nobreak\noindent}
+\def\date #1\par {\medskip\line{\hss\bf #1\hss}\medskip}
+\def\authors #1\par {\line{\hss\bf #1\hss}\medskip}
+
+\parindent=12pt
+
+\catcode`\"=13
+\def"{\leavevmode\hbox\bgroup\let"=\egroup\setverb\tt}
+\def\setverb{\def\do##1{\catcode`##1=12}\dospecials\obeyspaces}
+\def\begtt{\medskip\bgroup
+   \nobreak\setverb \parskip=0pt %\parindent=0pt
+   \def\par{\endgraf\penalty500 }
+   \catcode`\"=12\catcode`\~=13 \obeylines
+   \startverb}
+{\catcode`\|=0 \catcode`\\=12
+  |gdef|startverb#1\endtt{%
+        |tt#1|nobreak|egroup|penalty0|medskip|scannexttoken}}
+{\obeyspaces\gdef {\ }}
+\long\def\scannexttoken#1{\ifx#1\par\else\noindent#1\fi}
+
+\def\bod {\par\smallskip \noindent\hbox to\parindent{\hss$\bullet$\hss}}
+
+\catcode`\<=13
+\def <#1>{{$\langle$\it#1$\rangle$}}
+\def\at{@}
+
+\titul --- grid --- 
+
+\titul Program na øe¹ení barevných i èernobílých lu¹»ovek
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\date 27. 9. 2003              
+
+\authors Mirek Ol¹ák + Petr Ol¹ák 
+\ ({\tt mirek\at olsak.net, petr\at olsak.net})
+
+Program øe¹í lu¹»ovky následujícího typu: je dána sí» prázdných
+ètvereèkù a po stranách jsou èísly oznaèeny délky a poèty blokù èerné
+nebo i jiné barvy. U~vícebarevných lu¹»ovek je vyznaèena i barva. 
+Má se vybarvit sí» tak, aby údaje po stranách odpovídaly.
+Podrobnìji viz napøíklad:
+
+\begtt
+www.griddlers.net
+\endtt
+
+Program pracuje s~èernobílými i barevnými lu¹»ovkami se ètvereèkovanou
+sítí. Trojúhelníková políèka ve ètvereèkované síti je mo¾né také
+deklarovat. Program umí øe¹it i tzv. triddlers (tj.~trojúhelníková 
+sí» s~¹estiúhelníkovým obvodem) v èernobílé i barevné verzi.
+
+Program umo¾ní buï vyøe¹it celou lu¹»ovku, nebo doká¾e naèíst èásteènì
+vyøe¹enou lu¹»ovku a poradit s~dal¹ím jednotlivým tahem. Nebo Vám
+poradí, kde jste udìlali v~èásteènì vyøe¹ené lu¹»ovce chybu 
+(ale nemusí prozradit øe¹ení).
+
+
+\tit Instalace
+%%%%%%%%%%%%%%
+
+Program pøelo¾íte ze zdrojového kódu pomocí pøíkazu:
+
+\begtt
+cc -O2 -o grid grid.c
+strip grid
+\endtt
+
+Parametr "-O2" podporuje GNU "gcc" (optimalizace rychlosti).
+Pokud Vá¹ kompilátor tento parametr nepodporuje, nemusíte jej pou¾ít.
+Pøíkaz "strip grid" èistí binární program od informací pro debugger.
+Není povinný a na nìkterých platformách asi není ani implementován.
+
+Zdrojový text jazyka C se opírá jen o~standardní knihovnu C, tj. mìl
+by být bez problémù pøelo¾itelný na {\it libovolné platformì}.
+
+
+\tit Provoz
+%%%%%%%%%%%
+
+Program spustíte pomocí:
+
+\begtt
+grid soubor
+\endtt
+%
+kde "soubor" je jméno vstupního souboru, ve kterém jsou zaneseny údaje
+o~poètech blocích v~øádcích a ve sloupcích, tj. zadání lu¹»ovky.
+Formát tohoto vstupního souboru je popsán ní¾e.
+
+Pøi øe¹ení lu¹»ovky programem mù¾e nastat nìkolik pøípadù:
+
+\bod Øe¹ení se povedlo najít v~souladu se zadáním.
+  V~takovém pøípadì program napí¹e OK a vypí¹e øe¹ení na terminál.
+  Navíc zapí¹e toto øe¹ení v~grafickém formátu do souboru "soubor.xpm". 
+  Na øe¹ení se mù¾ete podívat napø. Gimpem.
+
+\bod Zadání je sporné.
+  Program pøed tím, ne¾ zaène lu¹»ovku øe¹it, zkontroluje základní
+  konzistenci zadání: zda poèet políèek ka¾dé barvy, sèítáme-li je
+  podél øádkù, vychází stejnì, jako kdy¾ je sèítáme podél sloupcù.
+  Pokud toto neplatí, program nezaène vùbec lu¹tit a skonèí s~chybovou
+  zprávou o~nekonzistenci zadání.
+
+\bod Zadání je sporné, zùstala nevyøe¹ená políèka.
+  Nevyøe¹ená políèka jsou oznaèena otazníky. Program napí¹e KO.
+  K~této situaci dochází pouze tehdy, kdy¾ je zadání sporné, ale 
+  jednoduchým testem na rovnost poètu políèek v~øádcích a sloupcích
+  tento spor neodhalíme. Program upozorní na èíslo sporného øádku nebo
+  sloupce.
+
+\bod Existuje více øe¹ení.
+  Program vypí¹e v¹echna øe¹ení na terminál a první øe¹ení ulo¾í
+  do xpm souboru. Toto chování se dá pomocí parametrù pøíkazové øádky
+  zmìnit.
+
+
+\tit Parametry pøíkazové øádky
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begtt
+grid [parametry] soubor-se-zadáním
+\endtt
+
+\noindent "-help"
+
+\bgroup \leftskip=\parindent \parindent=0pt
+\def\bod{\par}
+
+   Vypí¹e struènou informaci o~mo¾ných parametrech na terminál a
+   ukonèí èinnost. 
+
+\para -p <number>                implicitní hodnota: "-p 0"
+
+   Po <number> krocích v~øe¹ení pøechází program do módu, 
+   pøi kterém se zastavuje u~ka¾dého kroku a vypisuje stávající 
+   stav øe¹ení na terminál. Novì objevená políèka (z~posledního
+   kroku) jsou oznaèena znaky "#" (barva) a "-" (barva není).
+   U~vícebarevných lu¹»ovek vypí¹e program stav øe¹ení po 
+   \uv{vrstvách} pro ka¾dou barvu zvlá¹» pouze pøi "-out 3" a více.
+   "-p 0" znamená, ¾e se program nezastaví nikdy, "-p 1" znamená, ¾e se
+   program zastaví hned po prvním kroku a zastavuje se pak pøi
+   ka¾dém dal¹ím kroku. Pojem "krok programu" je vysvìtlen ní¾e.
+
+\para -stop <number>             implicitní hodnota: "-stop 0"
+
+   Význam je stejný, jako pøi "-p <number>" jenom s~tím rozdílem,
+   ¾e po vykonání <number> krokù program vypí¹e stav øe¹ení a
+   ukonèí zcela svou èinnost. Pøi "-stop 0" program konèí a¾ 
+   v~okam¾iku, kdy do¹el ke sporu nebo na¹el v¹echna øe¹ení
+   nebo na¹el aspoò "-total" øe¹ení.
+
+\para -total <number>            implicitní hodnota: "-total 30"
+
+   Po nalezení <number> rùzných øe¹ení program ukonèí èinnost a 
+   dal¹í øe¹ení nehledá. Pøi "-total 0" program najde a vypí¹e 
+   v¹echna øe¹ení.
+
+\para -xpm <number>              implicitní hodnota: "-xpm 1"
+
+   Do souborù "*.xpm" ulo¾í jen prvních <number> øe¹ení.
+   Pøi "-xpm 1" program zalo¾í soubor stejného jména, jako
+   "soubor-se-zadáním", ale bez jeho pøípony a pøipojí
+   pøíponu ".xpm". Pøi "-xpm 2" a více program pøipojí ke 
+   jménu souboru "<èíslo øe¹ení>.xpm", tj. mù¾e zalo¾it 
+   více souborù a ulo¾it do nich postupnì v¹echna øe¹ení daného
+   problému. <èíslo øe¹ení> je zleva doplnìno nulami na tolik cifer,
+   kolik cifer má <number>. Pøi "-xpm 0" program nevytváøí 
+   ¾ádný XPM výstup.
+
+\para -log <number>              implicitní hodnota: "-log 2"
+
+   <number> znaèí úroveò ukecanosti výstupu na terminál.
+\bod   Pøi "-log 0" vystupují na terminál pouze øe¹ení. Tisk øe¹ení se dá
+              regulovat pomocí parametru -out.
+\bod   Pøi "-log 1" se vypí¹e pod øe¹ení údaj o~poètu øe¹ení a celková
+              statistika: poèet krokù, poèet úspì¹ných/v¹ech vstupù
+              do øádkù.
+\bod   Pøi "-log 2" se vypisují navíc èísla a typy krokù v~prùbìhu výpoètu.
+\bod   Pøi "-log 3" se navíc vypisují stavy øe¹ených øádkù-sloupcù pøed a po 
+              aplikaci pøíslu¹ného algoritmu.
+\bod   Pøi "-log 4" se navíc vypisují interní informace pou¾itých
+              algoritmù.
+
+\para -out <number>              implicitní hodnota: "-out 2"
+
+   Ovlivní formát výstupu øe¹ení na terminál:
+\bod   "-out 0" ... nic se netiskne.
+\bod   "-out 1" ... øe¹ení bez èísel øádkù a sloupcù kolem.
+\bod   "-out 2" ... øe¹ení vèetnì èísel øádkù a sloupcù kolem.
+\bod   "-out 3" ... neukonèená øe¹ení (pøi pausách nebo pøi konfliktu 
+              v~zadání) jsou vypisována ve v¹ech barevných vrstvách.
+
+\para -cmp <soubor>               
+
+   <soubor> obsahuje èásteènì vyøe¹enou lu¹»ovku ve formátu, který
+   je shodný s~tím, co program vypisuje na terminál. Podrobnìji
+   o~tomto formátu viz ní¾e.
+   Program najde první øe¹ení, ale nevypí¹e ho ani neulo¾í do XPM.
+   Místo toho je porovná s~obsahem <souboru> a vypí¹e otazníky tam,
+   kde jsou otazníky v~<souboru> a vyznaèí pomocí znakù~"#" a~"-" místa,
+   která se v~souboru li¹í od vypoèítaného øe¹ení. Jedná se tedy 
+   o~nápovìdu, co je ve Va¹em øe¹ení ¹patnì, ale program neprozradí
+   øe¹ení samotné.
+
+\para -ini <soubor>
+
+   Program zaèíná øe¹it od stavu lu¹»ovky, která je popsána 
+   v~<souboru>. Pøitom automaticky nastaví "-stop 1", tj. program
+   prozradí jen dal¹í pokraèování tohoto øe¹ení po prvním kroku.
+   Pokud nutnì chcete doøe¹it lu¹»ovku a¾ do konce, pi¹te
+   explicitnì "-stop 0". Tento údaj musí následovat za parametrem 
+   "-ini". Napø.: "grid -ini moje -stop 0 lustovka.g"
+
+\para -bl <number>                  implicitní hodnota: "-bl 7"
+
+   Na zaèátku øe¹ení lu¹»ovky program zkou¹í zabývat se jen tìmi 
+   øádky/sloupci, které mají stejnì nebo ménì blokù ne¾ <number>.
+   Teprve, pokud za tohoto omezení nedostaneme dal¹í výsledky,
+   pøechází program ke v¹em øádkùm/sloupcùm bez omezení.
+
+\par\egroup \medskip
+
+Parametry mohou být uvedeny v~libovolném poøadí a jsou oddìleny mezerou.
+Pokud se stejný parametr uvede vícekrát, platí jeho hodnota, která je
+uvedena u~posledního výskytu tohoto parametru.
+Pokud napí¹ete místo jména souboru znak~"-", pak program ète data ze
+standardního vstupu. Je mo¾né i tøeba toto: 
+
+\begtt
+cat zadani.g inisoubor | grid -xpm 0 -log 0 -out 1 -ini - - > napoveda
+\endtt
+
+Zbývá vysvìtlit pojem {\bf krok programu}. Jedním krokem je prùchod pøes
+v¹echny øádky (krok typu {\bf r}~-- rows) nebo prùchod pøes v¹echny sloupce
+(typ {\bf c}~-- columns). Tyto dva typy krokù se støídají. Pøi øe¹ení
+jednotlivého øádku/sloupce se pou¾ívá rychlý tzv. pravo-levý
+algoritmus, který ne v¾dy poskytne z~øádku/sloupce v¹echny informace,
+které by byl schopen odhalit èlovìk. Mù¾e se stát, ¾e ani po prùchodu
+v¹emi øádky a sloupci nevznikla ¾ádná nová zmìna v~rozpracovaném
+øe¹ení. V~takovém pøípadì program pøechází do kroku typu {\bf i}
+(intensive), ve kterém se pokusí vyhledat aspoò jeden øádek nebo
+sloupec, který poskytne novou informaci. Tento intenzivní algoritmus
+je pomalej¹í, ale nevynechá nic, co by mohl odhalit èlovìk zamìøující
+se izolovanì na øádky nebo sloupce. Pøed vstupem do kroku typu {\bf i}
+program pøi "-log 2" a více vytiskne vykøièník, aby bylo jasné, ¾e dále
+mù¾e výpoèet trvat ponìkud déle. Po nalezení zmìny v~lu¹»ovce v~rámci
+kroku typu {\bf i} se program vrací do re¾imu støídání krokù typu 
+{\bf r} a {\bf c} a¾ do chvíle, kdy znovu tímto zpùsobem nelze 
+odhalit dal¹í zmìnu.
+
+Mù¾e se stát, ¾e ani po aplikaci kroku typu {\bf i} není odhalena
+v~lu¹»ovce ¾ádná dal¹í zmìna. V~takovém pøípadì program pøechází do
+kroku typu {\bf t} (test), pøi kterém navrhne zamìnit nìjaký otazník
+barvou pozadí. Po tomto návrhu pøechází program zpìt ke støídání
+krokù typu~{\bf r} a~{\bf c} s~obèasným pou¾itím kroku typu 
+{\bf i} a¾ do situace, kdy najde øe¹ení nebo zjistí, ¾e návrh
+vedl ke sporu. V~obou pøípadech pak je¹tì zkusí za otazník
+navrhnout barvy blokù a znovu testuje, zda takový návrh vede 
+k~øe¹ení nebo ke sporu.
+
+V pøípadì triddlers program støídá tøi základní kroky:
+{\bf r}~-- øádky, {\bf c}~-- sloupce zespodu, {\bf e}~-- sloupce shora.
+Jinak pracuje stejnì, tj.~pøi selhání tìchto tøí krokù
+pøechází do kroku typu~{\bf i} a pøípadnì také do kroku
+typu~{\bf t}.
+
+
+\tit Formát vstupního souboru se zadáním
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Pro dvoubarevné (èernobílé) lu¹»ovky staèí do souboru napsat:
+
+\begtt
+Jakýkoli text tøeba na více øádcích. Tento text bude ignorován. 
+V prvním sloupci ignorovaného textu nesmí být dvojteèka ani 
+znak vìzení #. Prvním znakem souboru nesmí být èíslice.
+: dvojteèka na zaèátku øádku vymezuje zadávání øádkù
+... údaje o øádcích lu¹»ovky,
+    jeden øádek souboru odpovídá jednomu øádku lu¹»ovky
+: dvojteèka na zaèátku øádku ukonèuje øádky a zahajuje zadávání sloupcù
+... údaje o sloupcích lu¹»ovky,
+    jeden øádek souboru odpovídá jednomu sloupci lu¹»ovky
+: dvojteèka na zaèátku øádku ukonèuje zadání
+libovolný text
+\endtt
+
+Zadání øádkù a sloupcù obsahuje èísla (kladná celá) oddìlená od sebe
+mezerou (nebo více mezerami èi tabelátory). Pøed prvním èíslem mù¾e
+být také libovolné mno¾ství mezer a tabelátorù.  Èísla mají stejný
+význam, jako obvykle po stranách lu¹»ovky. Je významný i prázdný
+øádek, který oznaèuje nula blokù v~daném øádku nebo sloupci lu¹»ovky.
+Pøíklad vstupního souboru: viz "kocka.g".
+
+Vícebarevné lu¹»ovky mají podobný formát vstupního souboru, jen musejí
+obsahovat navíc tzv. deklaraci barev. Pøíklad vèetnì detailního 
+popisu formátu je v~souborech "oko.g" a "ruze.g"
+
+Lu¹»ovky s~trojúhelníky (podle griddlers.net, tj. trojúhelníky se
+nijak nevá¾ou na celistvé bloky) mají stejný formát vstupního souboru
+jako vícebarevné lu¹»ovky. Pøíklad vèetnì popisu formátu je v~souboru
+"alladin.g"
+
+Lu¹»ovky s~trojúhelníky, které mohou tvoøit okraje celistvých blokù
+(podle èasopisu Maµované krí¾ovky, vydává Silentium s.r.o.,
+Bratislava) mají podobný formát, jako vícebarevné lu¹»ovky, jen je
+potøeba deklarovat pomocí znakù {\tt\char`\<} nebo {\tt\char`\>} 
+trojúhelníky, které navazují na blok zleva nebo zprava.  
+Pøíklad vèetnì popisu formátu je
+v~souboru "brontik.g"
+
+Triddlers se zadávají podobnì, jako èernobílé èi barevné lu¹»ovky
+s~pravoúhlou sítí. Na zaèátku souboru (pøed pøípadnou deklarací barev)
+je navíc potøeba pomocí "#T" nebo "#t" v~prvním sloupci dát najevo, ¾e
+zadání obsahuje triddlers. Místo obvyklých dvou blokù dat oddìlených
+dvojteèkami je tøeba zadat ¹est blokù dat oddìlených
+dvojteèkami. První blok se vztahuje na øádky popsané vlevo nahoøe,
+druhý na øádky vlevo dole, tøetí blok obsahuje údaje sloupcù
+zaèínajících úplnì dole, ètvrtý pak sloupce zaèínající vpravo dole,
+pátý blok popisuje sloupce zaèínající vpravo nahoøe a ¹estý blok
+popisuje sloupce zaèínající zcela nahoøe. Kolem ¹estiúhelníku tedy
+èteme údaje proti smìru hodinových ruèièek poèínaje levým horním rohem
+a v~tomto poøadí je zapisujeme do souboru. Upozoròujeme na drobnou
+zradu: údaje o~blocích sloupcù, které zaèínají dole, musíme zapisovat
+v~poøadí {\it zdola nahoru}. Pøíklady zadání triddlers jsou v~souborech
+"tkocka.t" nebo "vcely.g".
+
+Program také doká¾e pøeèíst zadání èernobílých lu¹»ovek podle formátu, který 
+pou¾ívá program "mk.exe" pro Windows 
+("http://frix.fri.utc.sk/~johny/mk43frm.php"). 
+Do módu ètení takového souboru se program grid pøepíná automaticky
+podle toho, ¾e prvním znakem souboru je èíslice. Pak pøeskoèí první
+øádek souboru, proto¾e tam nejsou pro program grid podstatné informace,
+a zaèíná èíst a¾ údaje o~øádcích lu¹»ovky (a¾ po symbol "#") a dále
+ète údaje o~sloupcích (a¾ po prázdný øádek nebo konec souboru). Øádek
+s~nulovým poètem blokù se v~tomto formátu znaèí nulou. Pøíklad
+takového souboru je "levikral.mk"
+
+
+\tit Formát vstupního souboru s~èásteèným øe¹ením
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Tyto soubory se pou¾ívají v~souvislosti s~parametry "-ini" a "-cmp".
+Formát je navr¾en tak, aby mu vyhovovaly výstupy programu grid na
+terminál:
+
+\begtt
+libovolný text
+:::: ètyøi dvojteèky zahajují vlastní popis lu¹»ovky
+   : øádky lu¹»ovky
+   : poèet tìchto øádkù se musí shodovat s poètem øádkù
+   : lu¹»ovky, který je deklarován v hlavním vstupním souboru
+libovolný text
+\endtt
+
+Ka¾dý øádek lu¹»ovky má tvar:
+
+\begtt
+<lib.text><dvojteèka><lib.znak><znaky lu¹»ovky><lib.text>
+\endtt
+%
+pøitom poèet znakù lu¹»ovky na øádku musí odpovídat poètu sloupcù
+lu¹»ovky, který je deklarován v~hlavním vstupním souboru.
+
+\def\bod{\par\penalty1000}
+
+Znaky lu¹»ovky mohou být následující:
+
+\medskip
+\bod otazník nebo teèka --- zatím nevyøe¹ené políèko
+\bod mezera nebo minus --- urèitì barva pozadí
+\bod hvìzdièka nebo køí¾ek --- urèitì èerná
+\bod znak pro terminál podle deklarace barev --- urèitì barva
+\medskip
+
+Soubor s~èásteèným øe¹ením vytvoøíte snadno:
+
+\begtt
+grid -stop 1 lustovka.g > lustovka.p
+\endtt
+
+Pak mù¾ete pokraèovat:
+
+\begtt
+grid -ini lustovka.p lustovka.g
+\endtt
+
+V~pøípadì triddlers je formát souboru stejný, jen s tím rozdílem, ¾e
+øádek lu¹»ovky má tvar:
+
+\begtt
+<lib.text><lomitko><lib.znak><znaky lu¹»ovky><lib.text>
+\endtt
+%
+kde <lomitko> je bì¾né lomítko ("/") nebo zpìtné lomítko ("\") .
+
+
+
+\tit Pøíklad pou¾ití programu
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+V~UNIXovém shellu:
+
+\begtt
+for i in *.g *.mk; do grid -out 0 $i; done
+gimp *.xpm
+\endtt
+
+
+\tit Princip èinnosti programu
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+je popsán dùkladnì ve zdrojovém souboru "grid.c".  Je tam popsán 
+opravdu {\it dùkladnì\-} -- komentáøù najdete více ne¾ vlastního 
+zdrojového kódu, podobnì jako tøeba v~"tex.web".
+
+Pøedpokládáme toti¾, ¾e bezduché pou¾ívání tohoto programu nepøiná¹í
+lidem ¾ádnou radost. Podstatnì více radostí si èlovìk u¾ije pøi
+manuálním øe¹ení tìchto lu¹»ovek a zcela nejvíce radosti èlovìk získá
+pøi studiu a pochopení algoritmù, které se pro øe¹ení lu¹»ovek dají
+implementovat do poèítaèe. Vrchol radosti pak pøichází v~okam¾iku,
+kdy se èlovìku podaøí implementovat je¹tì efektivnìj¹í algoritmus, ne¾ 
+ten, který je pou¾it v~tomto programu.
+
+Dáváme v¹em u¾ivatelùm, kteøí rozumìjí èesky (komentáøe jsou 
+v~èe¹tinì), mo¾nost si u¾ít: otevøete si soubor "grid.c" v~textovém
+editoru a pus»te se do ètení...
+
+Vìnovali jsme mnoho hodin optimalizaci rychloti algoritmù. Zamítli
+jsme metodu {\it brutální síly\/} a pou¾ili jsme metodu 
+{\it brutální inteligence}. Domníváme se, ¾e právì proto patøí ná¹ program 
+k~nejrychlej¹ím ve své kategorii a pøedpokládáme, ¾e také patøí
+k~nejlépe dokumentovaným programùm na øe¹ení tìchto lu¹»ovek.
+
+Dal¹í výhodou programu je jeho nezávislost na platformì. 
+Nepou¾íváme systém MS~Windows (proto¾e to nemáme za potøebí), ale jsme
+pøesvìdèeni, ¾e na této obskurní poèítaèové platformì bude program
+rovnì¾ snadno implementovatelný. Je to tím, ¾e se program opírá jen 
+o základní knihovnu jazyka~C a nevyu¾ívá ¾ádných nadstaveb ¹itých na
+míru jen pro konkrétní operaèní systémy. Program jsme napøíklad
+testovali na pøedpotopním PC~AT~286 16MHz se systémem PC~DOS a kompilace i
+provoz programu na tomto stroji byly bez problémù.
+
+
+\end
+
+

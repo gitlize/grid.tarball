@@ -1,0 +1,176 @@
+<HTML>
+<HEAD>
+<TITLE>Griddlers solver, nonogram solver</TITLE>
+<META HTTP-EQUIV="Content-Type" content="text/html; charset=iso-8859-2">
+</HEAD>
+<BODY bgcolor=white>
+
+<A NAME="Czech"></A>
+
+<H2>
+Program grid -- řešení lušťovek z <A HREF="http://www.griddlers.net">www.griddlers.net</A>
+</H2>
+
+<P>
+<B><A HREF="http://www.olsak.net">Mirek Olšák a Petr Olšák</A></B>
+
+<P>
+<B><A HREF="#English">English/Angličtina</A></B>
+
+<P>
+Luštitelům malovaných křížovek nebo jen zájemcům o tuto problematiku
+nabízíme počítačový program, který tyto lušťovky řeší.
+Program se jmenuje <B>grid</B> a má následující vlastnosti:
+
+<UL>
+<LI>Je jednoduše kompilovatelný pro libovolnou počítačovou platformu.
+<LI>Je k dispozici velmi obsáhle <A HREF="grid.c">komentovaný zdrojový kód</A>.
+<LI>Implementuje algoritmy s optimalizací na rychlost. 
+    Patří zřejmě k~nejrychlejším programům na řešení těchto lušťovek.
+<LI>Je k dispozici dokumentace v <A HREF="gridoc.pdf">češtině</A> a <A HREF="gridoce.pdf">angličtině</A>.
+<LI>Program najde všechna řešení (je-li jich více) nebo odhalí konflikt v zadání.
+<LI>Program umí:
+    <UL>
+    <LI>Běžné černobílé (dvoubarevné) lušťovky.
+    <LI>Barevné lušťovky, barvy je možno libovolně deklarovat.
+    <LI>Lušťovky s trojúhelníky podle <A HREF="http://www.griddlers.net">www.griddlers.net</A>.
+    <LI>Lušťovky s trojúhelníky podle časopisu Maľované krížovky, Silentium s.r.o, Bratislava.
+    <LI>Tzv. triddlers podle <A HREF="http://www.griddlers.net">www.griddlers.net</A>,
+        tj. trojúhelníková síť s šestiúhelníkovým obvodem.
+    </UL>
+<LI>Program nabízí:
+    <UL>
+    <LI>Výstup řešení do grafického XPM souboru nebo více souborů. 
+    <LI>Tisk řešení ve znakovém režimu na terminál.
+    <LI>Možnost podrobného a názorného výstupu, kdy je vidět, jak algoritmy pracují.
+    <LI>Tisk statistiky o počtech průchodů jednotlivými algoritmy
+        (na základě tohoto výpisu můžete odhadnout složitost úlohy).
+    <LI>Režim pause, kdy se program zastaví a můžete krokovat jeho činnost.
+    <LI>Režim nápovědy, kdy program přečte částečně vyluštěnou lušťovku a upozorní Vás na chyby.
+    <LI>Režim nápovědy, kdy program ukáže, jak v částečně vyřešené lušťovce pokračovat.
+    <LI>Dávkové zpracování většího množství lušťovek najednou.
+    <LI>Možnost pracovat jako UNIXový filtr.
+    </UL>
+<LI>Program je šířen pod <A HREF="COPYING">GNU GPL licencí</A>.
+</UL>
+
+<P>
+<B>Download:</B> <A HREF="grid.tgz">grid.tgz</A>
+
+<P>
+Hodně radosti při používání programu a ještě více radosti při zkoumání
+jeho algoritmů přejí
+
+<P>
+Autoři
+
+<P>
+<B>Poznámka.</B> Doslechli jsme se, že systém MS Windows je standardně
+dodáván bez překladače jazyka C (sic!), takže se může stát, že
+uživatelé tohoto obskurního systému nebudou mít možnost program
+přeložit. Prosíme tedy někoho, kdo program pro tuto platformu přeloží, 
+ať nám pošle binární podobu programu a my ji zařadíme do balíku.
+Uživatelé MS Windows pak budou muset spoléhat na to, že je to skutečně
+tento program a ne virus (ostatně, oni jsou na takové věci asi zvyklí).
+My sami MS Windows nepoužíváme, protože to nemáme za potřebí.
+
+<P>
+Připravujeme:
+<UL>
+<LI><B>Grid-printer</B>, který tiskne lušťovky podle vstupního formátu
+    programu <B>grid</B> v nevyřešeném i vyřešeném tvaru. V tom druhém
+    případě <B>grid-printer</B> využije výstup programu <B>grid</B>.
+    <B>Grid-printer</B> bude implementován pomocí TeXu a bude umět barevné
+    i černobílé lušťovky.
+
+<LI><B>Grid-šifrator</B>, který čte XPM soubory (vytvořené
+    např. pomocí Gimpu) a generuje z nich úlohy ve vstupním formátu
+    programu <B>grid</B>. Pomocí programu <B>grid</B> si pak můžete
+    ověřit, zda má úloha jen jedno řešení a pomocí
+    <B>grid-printeru</B> si budete moci úlohu vytisknout.
+</UL>
+Programy <B>grid-printer</B> a <B>grid-šifrator</B> máme zatím v alpha
+verzích v nepublikovatelném stavu.
+
+<P>
+<HR>
+
+<A NAME="English"></A>
+
+<H2>
+Program grid -- griddler solver, nonogram solver, see <A HREF="http://www.griddlers.net">www.griddlers.net</A>
+</H2>
+
+<P>
+<B><A HREF="http://www.olsak.net">Mirek Olšák and Petr Olšák</A></B>
+
+<P>
+<B><A HREF="#Czech">Czech/Čeština</A></B>
+
+<P>
+We offer to puzzler enthusiasts a computer program which solves the
+nonogram puzzles (griddler puzzles). The name of this program
+is <B>grid</B> and it have the following advantages:
+
+<UL>
+<LI>It is simply compilable to arbitrary computer platform.
+<LI>The <A HREF="grid.c">commented in detail source code</A> is available.
+<LI>Program is time optimized. It belongs to the fastest griddler solvers.
+<LI>The documentation in <A HREF="gridoc.pdf">Czech</A> and in <A HREF="gridoce.pdf">English</A> is available.
+<LI>Program finds all solutions (if there are more solutions) or finds a conflict in the task.
+<LI>The program do solve:
+    <UL>
+    <LI>common back+white (two color) puzzles.
+    <LI>colored puzzles (you can declare arbitrary colors).
+    <LI>triangle puzzles by <A HREF="http://www.griddlers.net">www.griddlers.net</A>.
+    <LI>triangle puzzles by the journal Maľované krížovky, Silentium s.r.o, Bratislava.
+    <LI>triddlers by <A HREF="http://www.griddlers.net">www.griddlers.net</A>,
+        it means triangular grid with hexagonal circumference.        
+    </UL>
+<LI>The program offers:
+    <UL>
+    <LI>Output to graphical XPM file or more files.
+    <LI>Printing solutions in character-like format on the terminal.
+    <LI>Possibility of detailed output where you can read how the line solvers work.
+    <LI>Printing the statistic about number of steps and line examinations
+        (you can use it to estimate the difficulty of the task).
+    <LI>Pause mode where you can trace the solution.
+    <LI>Hint mode where program reads your partially solved puzzles and
+        prints only the bugs of this solution.
+    <LI>Hint mode where program show only next step from your partially solved puzzles.
+    <LI>Batch mode -- more puzzles can be solved by one command line.
+    <LI>Filter mode -- program behaves as a common UNIX filter.
+    </UL>
+<LI>The program is available under <A HREF="COPYING">GNU GPL license</A>.
+</UL>
+
+<P>
+<B>Download:</B> <A HREF="grid.tgz">grid.tgz</A>
+
+<P>
+Enjoy! 
+
+<P>
+We have under construction:
+<UL>
+<LI><B>Grid-printer</B> which prints from <B>grid</B> input file
+    format the puzzle in unsolved and in solved state (the second one
+    using the <B>grid</B> output. The <B>Grid-printer</B> will be
+    implemented by TeX and it will print the black+white and colored
+    puzzles.
+
+<LI><B>Grid-sifrator</B> which reads the XPM files (created by Gimp,
+    for example) and prints the task in <B>grid</B> input file format.
+    You can use <B>grid</B> to test if this task has only one
+    solution and you can use <B>grid-printer</B> to print your own
+    puzzles.
+</UL>
+The <B>grid-printer</B> and <B>grid-sifrator</B> programs are only 
+in alpha versions no ready to put them to public.
+
+</BODY>
+</HTML>
+
+
+
+
