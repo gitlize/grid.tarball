@@ -42,7 +42,7 @@
 \titul Program na øe¹ení barevných i èernobílých lu¹»ovek
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\date 27. 9. 2003              
+\date Verze 1.2 (9. 11. 2003)              
 
 \authors Mirek Ol¹ák + Petr Ol¹ák 
 \ ({\tt mirek\at olsak.net, petr\at olsak.net})
@@ -180,6 +180,10 @@ grid [parametry] soubor-se-zadáním
    kolik cifer má <number>. Pøi "-xpm 0" program nevytváøí 
    ¾ádný XPM výstup.
 
+\para -i    {}                             {}
+
+   Program bude pou¾ívat pouze intenzivní algoritmus a testy.
+
 \para -log <number>              implicitní hodnota: "-log 2"
 
    <number> znaèí úroveò ukecanosti výstupu na terminál.
@@ -194,6 +198,12 @@ grid [parametry] soubor-se-zadáním
 \bod   Pøi "-log 4" se navíc vypisují interní informace pou¾itých
               algoritmù.
 
+\para -lf <file>                 implicitní hodnota: "stdout"
+
+   Místo na terminál bude výstup programu smìrován
+   do souboru. Pokud tento soubor existuje, bude na 
+   zaèátku èinnosti programu vymazán.
+
 \para -out <number>              implicitní hodnota: "-out 2"
 
    Ovlivní formát výstupu øe¹ení na terminál:
@@ -201,7 +211,15 @@ grid [parametry] soubor-se-zadáním
 \bod   "-out 1" ... øe¹ení bez èísel øádkù a sloupcù kolem.
 \bod   "-out 2" ... øe¹ení vèetnì èísel øádkù a sloupcù kolem.
 \bod   "-out 3" ... neukonèená øe¹ení (pøi pausách nebo pøi konfliktu 
-              v~zadání) jsou vypisována ve v¹ech barevných vrstvách.
+                    v~zadání) jsou vypisována ve v¹ech barevných vrstvách.
+\bod   "-out 4" ... neukonèená øe¹ení se tisknou v~ka¾dém
+                    kroku bez ohledu na nastavení pause.
+                    
+\para -of <file>                 implicitní hodnota: "stdout"
+
+   Místo na terminál bude tisk øe¹ení smìrován
+   do souboru. Pokud tento soubor existuje, bude na 
+   zaèátku èinnosti programu vymazán.
 
 \para -cmp <soubor>               
 
@@ -250,23 +268,21 @@ jednotlivého øádku/sloupce se pou¾ívá rychlý tzv. pravo-levý
 algoritmus, který ne v¾dy poskytne z~øádku/sloupce v¹echny informace,
 které by byl schopen odhalit èlovìk. Mù¾e se stát, ¾e ani po prùchodu
 v¹emi øádky a sloupci nevznikla ¾ádná nová zmìna v~rozpracovaném
-øe¹ení. V~takovém pøípadì program pøechází do kroku typu {\bf i}
-(intensive), ve kterém se pokusí vyhledat aspoò jeden øádek nebo
-sloupec, který poskytne novou informaci. Tento intenzivní algoritmus
-je pomalej¹í, ale nevynechá nic, co by mohl odhalit èlovìk zamìøující
-se izolovanì na øádky nebo sloupce. Pøed vstupem do kroku typu {\bf i}
-program pøi "-log 2" a více vytiskne vykøièník, aby bylo jasné, ¾e dále
-mù¾e výpoèet trvat ponìkud déle. Po nalezení zmìny v~lu¹»ovce v~rámci
-kroku typu {\bf i} se program vrací do re¾imu støídání krokù typu 
+øe¹ení. V~takovém pøípadì program pøechází do krokù typu {\bf R} a {\bf C},
+ve kterém znovu projde øádky a sloupce, tentokrát intenzivním algoritmem.
+Tento algoritmus je nepatrnì pomalej¹í, ale nevynechá nic, 
+co by mohl odhalit èlovìk zamìøující se izolovanì na øádky nebo sloupce. 
+Po nalezení zmìny v~lu¹»ovce v~rámci
+krokù typu {\bf R} a {\bf C} se program vrací do re¾imu støídání krokù typu 
 {\bf r} a {\bf c} a¾ do chvíle, kdy znovu tímto zpùsobem nelze 
 odhalit dal¹í zmìnu.
 
-Mù¾e se stát, ¾e ani po aplikaci kroku typu {\bf i} není odhalena
+Mù¾e se stát, ¾e ani po aplikaci krokù typu {\bf R} a {\bf C} není odhalena
 v~lu¹»ovce ¾ádná dal¹í zmìna. V~takovém pøípadì program pøechází do
 kroku typu {\bf t} (test), pøi kterém navrhne zamìnit nìjaký otazník
 barvou pozadí. Po tomto návrhu pøechází program zpìt ke støídání
-krokù typu~{\bf r} a~{\bf c} s~obèasným pou¾itím kroku typu 
-{\bf i} a¾ do situace, kdy najde øe¹ení nebo zjistí, ¾e návrh
+krokù typu~{\bf r} a~{\bf c} s~obèasným pou¾itím krokù typu 
+{\bf R} a {\bf C} a¾ do situace, kdy najde øe¹ení nebo zjistí, ¾e návrh
 vedl ke sporu. V~obou pøípadech pak je¹tì zkusí za otazník
 navrhnout barvy blokù a znovu testuje, zda takový návrh vede 
 k~øe¹ení nebo ke sporu.
@@ -274,7 +290,7 @@ k~øe¹ení nebo ke sporu.
 V pøípadì triddlers program støídá tøi základní kroky:
 {\bf r}~-- øádky, {\bf c}~-- sloupce zespodu, {\bf e}~-- sloupce shora.
 Jinak pracuje stejnì, tj.~pøi selhání tìchto tøí krokù
-pøechází do kroku typu~{\bf i} a pøípadnì také do kroku
+pøechází do krokù typu~{\bf R}, {\bf C} a {\bf E} a pøípadnì také do kroku
 typu~{\bf t}.
 
 
@@ -338,8 +354,7 @@ v~poøadí {\it zdola nahoru}. Pøíklady zadání triddlers jsou v~souborech
 "tkocka.t" nebo "vcely.g".
 
 Program také doká¾e pøeèíst zadání èernobílých lu¹»ovek podle formátu, který 
-pou¾ívá program "mk.exe" pro Windows 
-("http://frix.fri.utc.sk/~johny/mk43frm.php"). 
+pou¾ívá program "mk" ("http://frix.fri.utc.sk/~johny/mk43frm.php"). 
 Do módu ètení takového souboru se program grid pøepíná automaticky
 podle toho, ¾e prvním znakem souboru je èíslice. Pak pøeskoèí první
 øádek souboru, proto¾e tam nejsou pro program grid podstatné informace,

@@ -5,6 +5,10 @@
 </HEAD>
 <BODY bgcolor=white>
 
+<P>
+<A HREF="#English">English/Angliètina</A> &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
+<A HREF="#Czech">Czech/Èe¹tina</A>
+
 <A NAME="Czech"></A>
 
 <H2>
@@ -15,9 +19,6 @@ Program grid -- øe¹ení lu¹»ovek z <A HREF="http://www.griddlers.net">www.griddle
 <B><A HREF="http://www.olsak.net">Mirek Ol¹ák a Petr Ol¹ák</A></B>
 
 <P>
-<B><A HREF="#English">English/Angliètina</A></B>
-
-<P>
 Lu¹titelùm malovaných køí¾ovek nebo jen zájemcùm o tuto problematiku
 nabízíme poèítaèový program, který tyto lu¹»ovky øe¹í.
 Program se jmenuje <B>grid</B> a má následující vlastnosti:
@@ -26,8 +27,10 @@ Program se jmenuje <B>grid</B> a má následující vlastnosti:
 <LI>Je jednodu¹e kompilovatelný pro libovolnou poèítaèovou platformu.
 <LI>Je k dispozici velmi obsáhle <A HREF="grid.c">komentovaný zdrojový kód</A>.
 <LI>Implementuje algoritmy s optimalizací na rychlost. 
-    Patøí zøejmì k~nejrychlej¹ím programùm na øe¹ení tìchto lu¹»ovek.
-<LI>Je k dispozici dokumentace v <A HREF="gridoc.pdf">èe¹tinì</A> a <A HREF="gridoce.pdf">angliètinì</A>.
+    Patøí zøejmì k nejrychlej¹ím programùm na øe¹ení tìchto lu¹»ovek.
+<LI>Je k dispozici dokumentace 
+    v <A HREF="gridoc.pdf">èe¹tinì</A> 
+    a <A HREF="gridoce.pdf">angliètinì</A>.
 <LI>Program najde v¹echna øe¹ení (je-li jich více) nebo odhalí konflikt v zadání.
 <LI>Program umí:
     <UL>
@@ -55,7 +58,34 @@ Program se jmenuje <B>grid</B> a má následující vlastnosti:
 </UL>
 
 <P>
-<B>Download:</B> <A HREF="grid.tgz">grid.tgz</A>
+<B>Download:</B> 
+<UL>
+<LI>
+<A HREF="ftp://math.feld.cvut.cz/pub/olsak/grid/grid.tgz">grid.tgz, verze 1.2</A>
+<LI>
+<A HREF="ftp://math.feld.cvut.cz/pub/olsak/grid/grid10.tgz">grid10.tgz, verze 1.0</A>
+</UL>
+
+<P>
+<B>Novinky verze 1.2</B>
+<UL>
+<LI>Implementován intensivní øádkový algoritmus s <EM>lineární slo¾itostí</EM>
+    místo pùvodní slo¾itosti srovnatelnou s faktoriálem poètu blokù.
+<LI>Pøidán pøepínaè -i, který zapíná pou¾ití pouze intensivního
+    algoritmu.
+<LI>Pøidány pøepínaèe -lf a -of pro pøesmìrování logu a výstupu do souboru.
+<LI>Aktualizována dokumentace a komentáøe ve zdrojovém souboru.
+    Zvlá¹tì upozoròujeme na komentáø k funkci intensive(), která
+    implementuje zmínìný øádkový algoritmus s lineární slo¾itostí.
+</UL>
+
+<P>
+<B>Historie</B>
+<UL>
+<LI>30. 10. 2003: zveøejnìna první verze programu <B>1.0</B>.
+<LI>10. 11. 2003: nová verze <B>1.2</B> s lineární slo¾itostí
+    intensivního øádkového algoritmu.
+</UL>
 
 <P>
 Hodnì radosti pøi pou¾ívání programu a je¹tì více radosti pøi zkoumání
@@ -68,11 +98,12 @@ Autoøi
 <B>Poznámka.</B> Doslechli jsme se, ¾e systém MS Windows je standardnì
 dodáván bez pøekladaèe jazyka C (sic!), tak¾e se mù¾e stát, ¾e
 u¾ivatelé tohoto obskurního systému nebudou mít mo¾nost program
-pøelo¾it. Prosíme tedy nìkoho, kdo program pro tuto platformu pøelo¾í, 
-a» nám po¹le binární podobu programu a my ji zaøadíme do balíku.
-U¾ivatelé MS Windows pak budou muset spoléhat na to, ¾e je to skuteènì
-tento program a ne virus (ostatnì, oni jsou na takové vìci asi zvyklí).
-My sami MS Windows nepou¾íváme, proto¾e to nemáme za potøebí.
+pøelo¾it. Díky johny na ammo.sk, který program pro tuto platformu
+pøelo¾il, jej nyní i pro MS Windows mù¾ete provozovat z
+<A HREF="ftp://math.feld.cvut.cz/pub/olsak/grid/gridexe.zip">gridexe.zip</A>
+(zatím pouze verzi 1.0).
+Archiv úloh a dokumentace jsou nadále zabaleny jen na 
+<A HREF="ftp://math.feld.cvut.cz/pub/olsak/grid/grid.tgz">grid.tgz</A>.
 
 <P>
 Pøipravujeme:
@@ -94,6 +125,9 @@ verzích v nepublikovatelném stavu.
 
 <P>
 <HR>
+<P>
+<A HREF="#Czech">Czech/Èe¹tina</A> &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
+<A HREF="#English">English/Angliètina</A>
 
 <A NAME="English"></A>
 
@@ -105,9 +139,6 @@ Program grid -- griddler solver, nonogram solver, see <A HREF="http://www.griddl
 <B><A HREF="http://www.olsak.net">Mirek Ol¹ák and Petr Ol¹ák</A></B>
 
 <P>
-<B><A HREF="#Czech">Czech/Èe¹tina</A></B>
-
-<P>
 We offer to puzzler enthusiasts a computer program which solves the
 nonogram puzzles (griddler puzzles). The name of this program
 is <B>grid</B> and it have the following advantages:
@@ -116,7 +147,8 @@ is <B>grid</B> and it have the following advantages:
 <LI>It is simply compilable to arbitrary computer platform.
 <LI>The <A HREF="grid.c">commented in detail source code</A> is available.
 <LI>Program is time optimized. It belongs to the fastest griddler solvers.
-<LI>The documentation in <A HREF="gridoc.pdf">Czech</A> and in <A HREF="gridoce.pdf">English</A> is available.
+<LI>The documentation in <A HREF="gridoc.pdf">Czech</A> 
+    and in <A HREF="gridoce.pdf">English</A> is available.
 <LI>Program finds all solutions (if there are more solutions) or finds a conflict in the task.
 <LI>The program do solve:
     <UL>
@@ -145,10 +177,44 @@ is <B>grid</B> and it have the following advantages:
 </UL>
 
 <P>
-<B>Download:</B> <A HREF="grid.tgz">grid.tgz</A>
+<B>Download:</B> 
+<UL>
+<LI>
+<A HREF="ftp://math.feld.cvut.cz/pub/olsak/grid/grid.tgz">grid.tgz, version 1.2</A>
+<LI>
+<A HREF="ftp://math.feld.cvut.cz/pub/olsak/grid/grid10.tgz">grid10.tgz, version 1.0</A>
+</UL>
+
+<P>
+<B>News in version 1.2</B>
+<UL>
+<LI>The new intensive line-solver implemented. This line-solver has
+    only <EM>linear complexity</EM> instead of the old intensive
+    line-solver with complexity comparable with the factorial of number of
+    bloks.
+<LI>The -i option added (switch to use only intensive line-solver).
+<LI>The -lf and -of options added (redirect the log and/or solution
+    output to file).
+<LI>The documentation upgraded. See new commnets about function
+    intensive() in source code.
+</UL>
+
+<P>
+<B>History</B>
+<UL>
+<LI>Oct. 30. 2003: first version <B>1.0</B> released.
+<LI>Nov. 10. 2003: new version <B>1.2</B> with linear intensive line-solver.
+</UL>
 
 <P>
 Enjoy! 
+
+<P>
+<B>Notice</B> The MS Win system is distributed usually without C compiler.
+Thus, MS Win users can apply the 
+<A HREF="ftp://math.feld.cvut.cz/pub/olsak/grid/gridexe.zip">gridexe.zip</A>
+(only version 1.0) with binary code of the program for this obscured platform
+(thanks to johny on ammo.sk who compiled our program).
 
 <P>
 We have under construction:

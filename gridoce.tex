@@ -6,7 +6,7 @@
 \font\bbf  = csb10 scaled \magstep1
 
 \def\titul #1\par {\line{\hss\bbbf #1\hss}\medskip}
-\def\tit #1\par {\bigskip{\bbf #1}\par\nobreak\medskip\noindent}
+\def\tit #1\par {\bigskip\penalty-2000 {\bbf #1}\par\nobreak\medskip\noindent}
 \def\para #1 #2 #3\par {\par\smallskip
    {\noindent{\tt #1 #2}\hfill #3\leftskip=0pt \par}
    \nobreak\noindent}
@@ -40,7 +40,7 @@
 \titul The griddler (nonogram) solver
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\date 27. 9. 2003              
+\date Version: 1.2, November 2003              
 
 \authors Mirek Ol\v s\'ak + Petr Ol\v s\'ak 
 \ ({\tt mirek\at olsak.net, petr\at olsak.net})
@@ -179,6 +179,10 @@ grid [options] mainfile
    that left trailing zeros can be appended to <solution number>.
    If "-xpm 0" is given then no XPM output is created.
 
+\para -i      {}                           {}
+
+  The program will use only intensive algorithms and tests.
+
 \para -log <number>              default value: "-log 2"
 
    The <number> means the verbosity level of the output to stdout.
@@ -193,6 +197,11 @@ grid [options] mainfile
 \bod   "-log 4" \dots\ Moreover, the internal information from line
        solvers is printed.
 
+\para -lf <file>                 default value: "stdout"
+
+   The log output will be printed to <file> instead to terminal.
+   If the <file> exists then it will be removed when program starts.
+
 \para -out <number>              default value: "-out 2"
 
    The solution printing format is controlled by "-out" option.
@@ -201,6 +210,13 @@ grid [options] mainfile
 \bod   "-out 2" \dots\ solution including numbers of rows/columns around it.
 \bod   "-out 3" \dots\ no-definitive solutions (during pause mode for example)
         are printed in all color layers.
+\bod   "-out 4" \dots\ the uncompleted solutions will be printed 
+                in every step.
+
+\para -of <file>                 default value: "stdout"
+
+   The solution output will be printed to <file> instead to terminal.
+   If the <file> exists then it will be removed when program starts.
 
 \para -cmp <file>               
 
@@ -245,28 +261,27 @@ cat main.g inifile | grid -xpm 0 -log 0 -out 1 -ini - - > hint-file
 
 Now, we describe the word {\bf step of the program}. One step is the
 pass through all rows (step type~{\bf r}) or through all columns (step
-type~{\bf c}). These two types of steps alternates. The fast (so called
-left-right) line solver is used in this type of steps. This line
-solver is not able to find all new solved puzzles. This implies that
-the steps of type~{\bf r} and~{\bf c} can fail (it means they gives no new solved
-puzzles). In such case the step of type~{\bf i} (intensive) is invoked.
-The slow but elaborate line solver is used in this step. 
-Program is finding only first row or column which gives
-new solved puzzles using intensive line solver. Then program 
-finishes this type of step and enter the ``normal'' type of steps
-{\bf r} or {\bf c}. These normal steps can fail again and then the 
-intensive type of step is entered again. If the intensive step
-fails then program enters to step type {\bf t} (test). In this case 
-program tries to substitute some unsolved puzzle to a definitive
-color (or background) and run the normal steps {\bf r} or {\bf c} again.
-If conflict occurs in this situation then program tries to substitute
-unsolved puzzle by another color and run normal steps again.
-And so on, and so on\dots
+type~{\bf c}). These two types of steps alternates. The fast (so
+called left-right) line solver is used in this type of steps. This
+line solver is not able to find all new solved puzzles. This implies
+that the steps of type~{\bf r} and~{\bf c} can fail (it means they
+give no new solved puzzles). In such case the steps of type~{\bf R}
+and {\bf C} is invoked.  The little bit slower but elaborate line solver
+is used in these steps.  As soon as the program finishes this type of
+steps then it enters the ``normal'' type of steps {\bf r} and {\bf c}. 
+These normal steps can fail again and then the intensive type of
+steps is entered again. If the intensive steps fail then program enters
+to step type {\bf t} (test). In this case the program tries to substitute
+some unsolved puzzle to a definitive color (or background) and run the
+normal steps {\bf r} or {\bf c} again.  If conflict occurs in this
+situation then program tries to substitute unsolved puzzle by another
+color and run normal steps again.  And so on, and so on\dots
 
 If triddlers are active then three ``normal'' step types are in progress:
-{\bf r}~-- rows, {\bf c}~-- columns from bottom, {\bf e}~-columns from
-top of the hexagonal. If these steps fail then the steps type~{\bf i}
-and (may be) type~{\bf t} are invoked as in griddlers.
+{\bf r}~-- rows, {\bf c}~-- columns from bottom, {\bf e}~-- columns from
+top of the hexagonal. If these steps fail then the steps of type~{\bf R},
+{\bf C}, {\bf E} and (may be) type~{\bf t} are invoked in the same
+manner as in griddlers.
 
 
 \tit The format of main input file
@@ -325,8 +340,7 @@ hexagonal, have to be read {\it from underneath upstairs}.
 See the examples in "tkocka.g" and "vcely.g" files.
 
 The program is able to read the black+white puzzles format
-used by "mk.exe" program for MS~Windows 
-("http://frix.fri.utc.sk/~johny/mk43frm.php").
+used by "mk" program (see the URL "http://frix.fri.utc.sk/~johny/mk43frm.php").
 The input mode for such format is activated automatically if the
 first character of the input file is a decimal digit.
 See the example in the file "levikral.mk" or in another "*.mk" files.

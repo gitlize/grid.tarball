@@ -1,0 +1,5 @@
+#!/bin/bash
+
+for i in *.mk *.g ; do
+  grid -xpm 0 -out 0 -log 1 $@ $i
+done

@@ -6,8 +6,7 @@
    Compile me by: cc -O2 -o grid grid.c
 
    Sorry, the comments are only in Czech language. For user documentation
-   (in English) see the gridoce.tex or gridoce.pdf file.
-   */
+   (in English) see the gridoce.tex or gridoce.pdf file.  */
 
 /* [uvod] Program resi lustovky typu griddlers, resp. nonograms, 
    viz napr. www.griddlers.net. Uzivatelska dokumentace je v souboru
@@ -23,8 +22,9 @@
    Algoritmy by mely byt pokud mozno inteligentni, protoze vyuziti brutalni 
    sily (rychlosti pocitace) je mnohdy nemozne nebo velmi neuzitecne. Kdo 
    vymysli algoritmus jeste ucelnejsi, nez ten, ktery je zde implementovan, 
-   necht da autorum vedet. Dekujeme.  
-   */
+   necht da autorum vedet. Dekujeme.  */
+
+#define VERSION "1.2"
 
 /* [limity] MAXBLOKU je maximalni pocet bloku v jednom radku
    resp. sloupci, MAXBAREV je maximalni pocet barev. MAXRADKU je
@@ -34,13 +34,11 @@
    prekroceni vede k bezprostrednimu ukonceni tzv. intenzivniho
    algoritmu, viz [dusleny].  MAXDELKASLOVA je nejvetsi delka slova
    pro deklaraci barvy v XPM formatu, viz [savexpm]. 
-   TRACKLIMIT je delka pameti na zapamatovani zmen, viz [ulozdopasku].
 
    Pri nacitani ulohy ze souboru je kontrolovano, zda neni prekrocen
    nektery limit. Pokud ano, program skonci s chybovou zpravou a
    vypise jmeno limitu.  Uzivatel pak muze zmenit hodnotu tohoto
-   limitu a program prekompilovat znovu.  
-   */
+   limitu a program prekompilovat znovu.   */
    
 #define MAXBLOKU       30
 #define MAXBAREV       10
@@ -50,22 +48,9 @@
 #define LIMITPOKUSU    10000000
 #define MAXDELKASLOVA  30
 
-/* [defaults] Nasleduji implicitni hodnoty promennych, ktere
-   se daji zmenit pomoci parametru prikazoveho radku:
-   */
-
-int      llevel =     2 ;   /* -log */
-int      outlevel =   2 ;   /* -out */
-long int steps =      0 ;   /* -stop */
-long int paused =     0 ;   /* -p */
-int      xpmnum =     1 ;   /* -xpm */
-int      totalnum =  30 ;   /* -total */
-int      limitbloku = 7 ;   /* -bl */
-
 /* [prototypy] Uvedeme prototypy vsech pouzitych funkci, 
    abychom mohli dale psat funkce v poradi, jak to vyhovuje 
-   cloveku a nikoli v poradi, jak to vyzaduje prekladac.
-   */
+   cloveku a nikoli v poradi, jak to vyzaduje prekladac.   */
 
 #include <stdio.h>
 #include <string.h>
@@ -82,24 +67,26 @@ void  gridprintpole (int b);
 int   iicd (int k);
 int   iief (int k);
 void  inipole ();
+void  intensive (int b);
 int   jakabarva (int i, int j);
-void  logradek (int jak);
+int   kontrolaradku ();
+void  logradekA (int printlr);
+void  logradekB ();
 int   main (int argc, char**argv);
 int   nactibarvu (int jak);
 int   nacticislo ();
 void  nactipart (FILE *f);
 void  nactiproblem ();
 int   nactiradek ();
-int   najdidalsi (int od, int starti, int startb);
-int   najdiprvni ();
-FILE* openfile (char *name);
+int   najdiprvni (int i, int j);
+int   nastavpravolevy ();
+FILE* openfile (char *name, char *mode);
 int   posunblok (int j, int i);
 void  pprint (FILE *f, int i, int j, int k);
 char  primoradek (int i, int b);
 void  printbloky (int * p, char *s);
 void  printpole (int podrobne);
 void  printstatistic ();
-int   projdidukladne ();
 char  rpole (int i, int b);
 char  rpolei (int i, int b);
 void  rprint (FILE*f, int k, char c);
@@ -109,7 +96,6 @@ void  skipline ();
 void  spole (int i, int b, char c);
 int   sumabarev (int b);
 void  testkonzistence (int i, int y, int z);
-int   testujradek (int i, int j);  
 int   tridmaxll ();
 void  tridprintpole (int b);
 void  tridsavexpm (FILE *f);
@@ -117,27 +103,44 @@ void  tridulozprvek (int k, int b, char c);
 int   tri (int k);
 int   trj (int k);
 void  trset (int r);
+void  ulozbarvu (int i, int b);
 void  ulozdopasku (int i, int ba);
+void  ulozpravolevy ();
 void  ulozprvek (int i, int b, char c);
-void  ulozreseni ();
 void  usage ();
 void  vemzpasku ();
 void  vsechnareseni ();
 int   vyres ();
-void  vyresdukladneradek ();
 int   vyresradek ();
 void  wlog (int level, char *s, long int value);
+void  zakazbarvu (int i, int b);
 
 #define MAX(A,B)  (((A)>(B))?(A):(B))
 
+/* [defaults] Nasleduji implicitni hodnoty promennych, ktere
+   se daji zmenit pomoci parametru prikazoveho radku:   */
+
+int      llevel =     2 ;   /* -log */
+int      outlevel =   2 ;   /* -out */
+long int steps =      0 ;   /* -stop */
+long int paused =     0 ;   /* -p */
+int      xpmnum =     1 ;   /* -xpm */
+int      totalnum =  30 ;   /* -total */
+int      limitbloku = 7 ;   /* -bl */
+int      jeni       = 0 ;   /* -i */
+FILE *   outf           ;   /* -of */
+FILE *   logf           ;   /* -lf */
+
 /* [sumarium] Deklarujeme globalni promenne, ktere pocitaji
    pocet pruchodu, pocet reseni radku/sloupcu atd. pro potreby
-   sumarni informace tistene po vyreseni lustovky.
-   */
+   sumarni informace tistene po vyreseni lustovky.  */
 
 unsigned long int sumkr = 0 ;  /* pocet kroku typu r */
 unsigned long int sumkc = 0 ;  /* pocet kroku typu c */
-unsigned long int sumki = 0 ;  /* pocet kroku typu i */
+unsigned long int sumke = 0 ;  /* pocet kroku typu e */
+unsigned long int sumkR = 0 ;  /* pocet kroku typu R */
+unsigned long int sumkC = 0 ;  /* pocet kroku typu C */
+unsigned long int sumkE = 0 ;  /* pocet kroku typu E */
 unsigned long int sumkt = 0 ;  /* pocet kroku typu t */
 unsigned long int sumrr = 0 ;  /* pocet reseni radku rychlym algoritmem */
 unsigned long int sumur = 0 ;  /* pocet uspechu rychlym algoritmem */
@@ -154,8 +157,8 @@ unsigned long int sumr  = 0 ;  /* pocet nalezenych reseni */
    psani dvou variant stejnych funkci, jednou pro radky a podruhe pro
    sloupce. Udaje o radcich jsou tesne nasledovany udaji o sloupcich a
    pouze podle promennych "pocetradku" a "pocetsloupcu" pozname, jaka je
-   geometrie lustovky. K idexovani prave zkoumaneho radku/sloupce
-   pouzivame globalni promenou "ii". Je-li "ii < pocetradku", pracujeme
+   geometrie lustovky. K indexovani prave zkoumaneho radku/sloupce
+   pouzivame globalni promenou "ii". Je-li "ii<pocetradku", pracujeme
    skutecne s radkem a jinak pracujeme se sloupcem. Pri nastaveni
    promenne "ii" nastavime take delku radku "ll" bud na hodnotu
    "pocetsloupcu" nebo "pocetradku".
@@ -190,21 +193,20 @@ int  vb[MAXRADKU+MAXSLOUPCU][MAXBLOKU];  /* velikosti bloku */
 int  pb[MAXRADKU+MAXSLOUPCU];            /* pocet bloku */
 int  bb[MAXRADKU+MAXSLOUPCU][MAXBLOKU];  /* barva bloku */
 char vm[MAXRADKU+MAXSLOUPCU][MAXBLOKU];  /* velikost mezery */
-char barva[MAXBAREV];                   /* barva pro vytisteni na terminal */
+char barva[MAXBAREV];                    /* barva pro vytisteni na terminal */
 
 /* [pole] Vysvetlime strukturu dat, ktere popisuji castecne vyresenou
    lustovku. Hlavni pameti na ukladani reseni je pole[][][]. Jedna se
-   o vice vrstev dvourozmernych matic znaku, kazda vrstva (indexovana
-   poslednim indexem) se vztahuje k jedne barve.  pole[0][][] je
-   rezervovano na sumarni informaci o vsech barvach, nebo (v pripade
-   jen dvoubarevne ulohy) se pracuje pouze s touto nultou vrstvou. 
-   V takovem pripade pole[0][i][j] obsahuje znak odpovidajici
-   policku lustovky na realnem radku "i" a sloupci "j".
-   Existuji tri moznosti, co muze v prvku pole[0][i][j] byt:
-   '?' .. policko zatim nezname, '*' .. policko cerne (nebo v barve bloku), 
-   ' ' .. policko v barve pozadi. Krome toho pri pause-modu jsou v kazdem
-   kroku zanaseny nove objevene udaje pomoci '#' .. policko v barve bloku
-   a '-' .. policko v barve pozadi.
+   o vice vrstev dvourozmernych matic znaku, kazda vrstva se vztahuje
+   k jedne barve.  pole[0][][] je rezervovano na sumarni informaci o
+   vsech barvach, nebo (v pripade jen dvoubarevne ulohy) se pracuje
+   pouze s touto nultou vrstvou.  V takovem pripade pole[0][i][j]
+   obsahuje znak odpovidajici policku lustovky na realnem radku "i" a
+   sloupci "j".  Existuji tri moznosti, co muze v prvku pole[0][i][j]
+   byt: '?' .. policko zatim nezname, '*' .. policko cerne (nebo 
+   v barve bloku), ' ' .. policko v barve pozadi. Krome toho pri
+   pause-modu jsou v kazdem kroku zanaseny nove objevene udaje pomoci
+   '#' .. policko v barve bloku a '-' .. policko v barve pozadi.
 
    U barevne lustovky obsahuje pole[b][i][j] pro b > 0 otaznik, pokud nevime, 
    zda na tomto policku barva b bude nebo ne. pole[b][i][j]==' ' znamena, ze
@@ -219,22 +221,21 @@ char barva[MAXBAREV];                   /* barva pro vytisteni na terminal */
 
    Protoze pole alokujeme az za behu programu podle aktualnich hodnot 
    "pocetradku",  "pocetsloupcu", "pocetbarev" pomoci malloc(),
-   muzeme pracovat jen s linearnim polem, tj. pole[]. Pristup do
+   budeme pracovat jen s linearnim polem, tj. pole[]. Pristup do
    vrstev a radku resime programove a mame na to pripraveny zkratky:
    BIJ ... pristup do b-te vrstvy, i-teho radku a j-teho sloupce,
    IJ  ... pristup do nulte vrstvy, i-teho radku a j-teho sloupce.
 
    Protoze algoritmy nerozlisuji mezi radky a sloupci lustovky
-   (pracuji se zobecnenymi radky a s globalnim ii, viz [vstupnidata]).
-   Je tedy potreba pripravit funkci rpole(), ktera precte policko pole ze
+   (pracuji se zobecnenymi radky a s globalnim ii, viz [vstupnidata]),
+   je potreba pripravit funkci rpole(), ktera precte policko pole ze
    zobecneneho radku ii z pozice i a z vrstvy b. Dale potrebujeme 
    funkci spole(), ktera do prvku pole odpovidajici zobecnenemu radku
    ii a pozici i v barevne vrstve b ulozi novy znak c.  
 
    Pripadem if(triddlers) se zatim pri prvnim cteni nebudeme zabyvat.
    Zamerime se na pravouhle lustovky. K triddlerum se podrobne
-   vratime pozdeji.
-   */
+   vratime pozdeji.  */
 
 #define BIJ b*vrstva + i*pocetsloupcu + j
 #define IJ  i*pocetsloupcu + j
@@ -260,44 +261,13 @@ void spole (int i, int b, char c)
 }
 
 /* [cosradkem] O kazdem zobecnenem radku si drzime nasledujici informace:
-   cosradkem[ii] = 1 ... ma smysl se radkem ii zabyvat, neni vhodne jej
-                         pri prochazeni radku preskakovat.
-   cosradkem[ii] = 0 ... nema smysl radek ii zkoumat rychlym algoritmem, zadne
-                         nove informace z nej timto algoritmem neziskame.
-   dukladne[ii] ... nenulove, pokud ma smysl se radkem zabyvat 
-   v intenzivnim algoritmu. V takovem pripade ukladame v dukladne[]
-   slozitost radku, viz [projdidukladne] 
+   cosradkem[ii] = 2 ... radkem ii se budeme zabyvat vzdy
+   cosradkem[ii] = 1 ... radkem se budeme zabyvat jen v intenzivnim algoritmu                      
+   cosradkem[ii] = 0 ... nema smysl se radkem ii zabyvat 
+   vyreseno[ii] ... pocet vyresenych policek v radku ii.  */
 
-   vyreseno[ii] ... pocet vyresenych policek v radku ii.
-
-   psvradku[ii] ... pocet stupnu volnosti radku. Kdyz umistime
-   vsechny bloky v radku co nejvice vlevo, pak stupen volnosti udava,
-   o kolik pozic je mozno posledni blok posunout, nez narazi
-   na konec radku.
-   */
-
-char cosradkem[MAXRADKU+MAXSLOUPCU];  
-int  psvradku[MAXRADKU+MAXSLOUPCU];    
+char cosradkem[MAXRADKU+MAXSLOUPCU]; 
 int  vyreseno[MAXRADKU+MAXSLOUPCU];    
-int  dukladne [MAXRADKU+MAXSLOUPCU];
-
-/* [pu] Pole pu[] budeme pouzivat na vypocet pruniku nekonfliktnich
-   rozlozeni bloku. Jakmile najdeme dalsi nekonfliktni rozlozeni bloku,
-   pricteme do pu[] jednicku vsude tam, kde mame cernou barvu.
-   Take pricteme jednicku do sumpu. Na konci je prunik cernych barev
-   vsude tam, kde pu[i] == sumpu a prunik bilych barev vsude tam,
-   kde pu[i] == 0.
-
-   V pripade ruznych barev musime pridat poli pu[] jeste jeden rozmer 
-   pro barvy. Nulta vrstva zde ale znamena barvu s indexem 1, 
-   abychom neplytvali mistem v pameti.
-
-   Pole pu[][] alokujeme dynamicky, ale ponechame mu dvourozmerny charakter, 
-   viz [inipole].
-   */
-
-long int * pu[MAXBAREV-1]; 
-long int sumpu;         
 
 /* [inipole] Funkce inipole() je volana z funkce main a inicializuje
    data pro lustovku pred zahajenim reseni, nebo pred vlozenim dalsich
@@ -305,15 +275,18 @@ long int sumpu;
 
    U cernobile lustovky ma smysl se na zacatku nezabyvat radky,
    ktere maji stupen volnosti vetsi nez je maximalni delka bloku.
-   O to se prave snazime v zaveru funkce inipole.
-   */
+   O to se prave snazime v zaveru funkce inipole. Promenna "psvradku"
+   (stupen volnosti radku) je definovana takto: Kdyz umistime
+   vsechny bloky v radku co nejvice vlevo, pak stupen volnosti udava,
+   o kolik pozic je mozno posledni blok posunout, nez narazi
+   na konec radku.  */
 
 int tr0, tr1;   /* konstanty, ktere pocita trset(), viz [triddlers] */
 
 void inipole () 
 {
   long int i;
-  int j, sumb, maxb, maxll;
+  int j, sumb, maxb, maxll, psvradku;
   
   vrstva = pocetradku*pocetsloupcu;
   maxll = MAX(pocetradku,pocetsloupcu);
@@ -330,10 +303,6 @@ void inipole ()
   pole = getmemory (total, "pole");
   for (i=0; i<total; i++) pole[i] = '?';
 
-  pu[0] = getmemory (maxll*sizeof(long int), "pu[0]");
-  if (!dvebarvy) for (i=1; i<pocetbarev-1; i++) 
-    pu[i] = getmemory (maxll*sizeof(long int), "pu");
-
   ll = pocetsloupcu;
   for (ii=0; ii<pocetradku+pocetsloupcu; ii++) {
     if (ii==pocetradku) ll = pocetradku;
@@ -344,32 +313,31 @@ void inipole ()
       sumb += vb[ii][j];
       if (vm[ii][j]>0) sumb += vm[ii][j];
     }
-    psvradku [ii] = ll - sumb;
-    if (pocetbarev > 2 || pb[ii] == 0 || maxb > psvradku[ii]) 
-          cosradkem [ii] = 1, vyreseno [ii] = dukladne [ii] = 0;
-    else  cosradkem [ii] = 0, vyreseno [ii] = dukladne [ii] = 0; 
+    psvradku = ll - sumb;
+    if (pocetbarev > 2 || pb[ii] == 0 || maxb > psvradku) 
+          cosradkem [ii] = 2, vyreseno [ii] = 0;
+    else  cosradkem [ii] = 0, vyreseno [ii] = 0; 
   }
 }  
 
 /* [ulozprvek] Abychom udrzeli udaje cosradkem[] a vyreseno[]
    konzistentni se stavem rozlustenosti lustovky, bude lepe pri kazdem
-   novem vyresenem policku zapisovat do pole[][][] prostrednictvim
+   novem vyresenem policku zapisovat do pole[] prostrednictvim
    funkce ulozprvek(). Tato funkce ulozi zmenu c na pozici i do vrstvy
    b podobne jako spole, ale navic pozmeni odpovidajici vyreseno[] a
    cosradkem[]. Jde o to, ze pokud jsme zanesli zmenu napr. na j-tou
    pozici v realnem radku k, pak je potreba otevrit realny sloupec j 
    dalsimu reseni, protoze tam muzeme ziskat diky nove informaci dalsi
-   nove informace. Nastavime tedy tomuto sloupci cosradkem[] = 1 a
-   vynulujeme dukladne[], protoze je sance, ze rychly algoritmus v tom
-   sloupci neco najde.
+   nove informace. Nastavime tedy tomuto sloupci cosradkem[] = 2,
+   protoze je sance, ze rychly algoritmus v tom sloupci neco najde.
 
    Globalni promenna "pocetzmen" pocita zmeny v kazdem kroku programu. 
    Podle ni pak zjistime, zda byl krok uspesny (nejake novinky jsme objevili)
    nebo neuspesny ("pocetzmen" se nezmenilo).
 
-   Funkce ulozdopasku() uklada zmenu do pameti track[], viz [ulozdopasku].
-   Zavolame ji jen tehdy, kdyz jsme ve zkousecim modu ("zkousime==1").  
-   */
+   Funkce ulozdopasku() uklada stav policka pred zmenou do pameti track[], 
+   viz [ulozdopasku]. Zavolame ji jen tehdy, kdyz jsme ve zkousecim modu 
+   ("zkousime==1").  */
 
 int pocetzmen, zkousime;
 
@@ -380,13 +348,11 @@ void ulozprvek (int i, int b, char c)
   if (triddlers) { tridulozprvek (i, b, c); return; }
   if (ii < pocetradku) {
     pole [b*vrstva + ii*pocetsloupcu + i] = c;
-    cosradkem[i+pocetradku] = 1; 
-    dukladne[i+pocetradku] = 0;
+    cosradkem[i+pocetradku] = 2; 
   }
   else  { 
     pole [b*vrstva + i*pocetsloupcu + ii-pocetradku] = c;
-    cosradkem[i] = 1; 
-    dukladne[i]=0; 
+    cosradkem[i] = 2; 
   }
   if (b > 0) return;
   vyreseno [ii]++;
@@ -394,17 +360,58 @@ void ulozprvek (int i, int b, char c)
   else                 vyreseno[i]++;
 }
 
+/* [ulozbarvu,zakazbarvu] Funkce ulozprvek() nehlida konzistenci
+   jednotlivych barevnych vrstev v pripade vicebarevne lustovky.
+   Abychom to meli pod kontrolou, budeme v pripade vicebarevne lustovky
+   volat funkce ulozbarvu() a zakazbarvu(). 
+
+   Funkce ulozbarvu() ulozi barvu "b" na policko "i" radku "ii",
+   tj. zanese do vrstvy "b" a vrstvy "0" znak "cerna" a do ostatnich
+   vrstev znak "bila".
+   
+   Funkce zakazbarvu() ulozi do vrstvy "b" na policko "i" radku "ii"
+   znak "bila". Pokud uz v zadne barevne vrstve nezustal na tomto policku 
+   otaznik, pak zanese znak "bila" i do vrstvy "0".
+   
+   Abychom zarucili spravne zaneseni predchozich udaju o policku do pasku,
+   viz funkce ulozdopasku() volana z ulozprvek(), musime volat
+   ulozprvek() drive, nez provedeme doplnkove zmeny a navic jej musime
+   volat pokud mozno pro vrstvu "0".
+
+   Znaky "cerna" resp. "bila" obsahuji hvezdicku resp. mezeru, ale
+   v pripade pausovaciho modu tam mame "#" resp. "-", abychom znazornili
+   rozdily oproti predchozimu kroku.   */
+
+char cerna = '*', bila = ' ';
+
+void ulozbarvu (int i, int b)
+{
+  int k;
+  ulozprvek (i, 0, cerna);
+  spole (i, b, cerna);
+  for (k=1; k<pocetbarev; k++) if (rpole(i,k)=='?') spole (i, k, bila);
+}
+
+void zakazbarvu (int i, int b)
+{
+  int k;
+  for (k=1; k<pocetbarev; k++) if (k!=b && rpole (i,k)=='?') break;
+  if (k==pocetbarev) {
+    ulozprvek (i, 0, bila);    /* posledni nedoresena vrstva */
+    spole (i, b, bila);
+  }
+  else ulozprvek (i, b, bila); /* existuji dalsi nedoresene vrstvy */
+}
+
 /* [vyres] Tato funkce provadi opakovane kroky typu r (rychle
    prochazeni radku) a c (rychle prochazeni sloupcu). Pokud narazi na
    sporne zadani, vrati KO. Pokud nelze pomoci rychleho algoritmu
-   ziskat dalsi informace, vyvolame zde funkci projdidukladne(), ktera se
-   pokusi najit dalsi zmenu za pouziti intenzivniho algoritmu.  Pokud
-   byla projdidukladne() uspesna (navratova hodnota je kladna), pak se
-   vracime k rychlemu aloritmu a znovu tocime dokola prochazeni radku
-   a sloupcu. Pokud neni ani vyvolani funkce projdidukladne() upesne,
-   ukoncime vyres() a vratime OK. V miste vyvolani vyres() pak musime
-   osetrit, zda OK znamena skutecne vyresenou lustovku nebo situaci,
-   kdy algoritmy selhaly, a neni jasne, jak pokracovat. Viz [vsechnareseni].
+   ziskat dalsi informace, prepne na intensivni algoritmus (dukladne=1) a 
+   znovu projde radky a sloupce a pak se znovu vrati k pravolevemu algoritmu.
+   Pokud neni nalezeno nic noveho ani pri dukladne==1, ukoncime vyres() 
+   a vratime OK. V miste vyvolani vyres() pak musime osetrit, zda OK znamena 
+   skutecne vyresenou lustovku nebo situaci, kdy algoritmy selhaly, a neni 
+   jasne, jak pokracovat. Viz [vsechnareseni].
 
    Promennou "pocetzmen" vzdy pronuluje funkce dalsikrok(). Pak pri
    reseni jednotlivych radku pomoci funkce vyresradek() muze dojit 
@@ -415,10 +422,9 @@ void ulozprvek (int i, int b, char c)
 
    Globalni promenna "pocetpreskocenych" pocita radky, ktere jsme 
    preskocili, protoze mely pocet bloku vetsi nez limitbloku.
-   Existuji-li takove radky a je vyreseno==0, pak zmenime limitbloku
+   Existuji-li takove radky a je pocetzmen==0, pak zmenime limitbloku
    na maximalni hodnotu a pustime se do reseni znovu. Nyni uz nebudeme
-   preskakovat radky kvuli tomu, ze maji moc bloku.  
-   */
+   preskakovat radky kvuli tomu, ze maji moc bloku.  */
 
 #define OK 1
 #define KO 0
@@ -426,44 +432,154 @@ void ulozprvek (int i, int b, char c)
 int  pocetpreskocenych; 
 char typkroku;
 int  pocetzmen2 = 0;   /* v triddlers scitame zmeny predchozich dvou kroku */
+int  dukladne = 0;
 
 int vyres () 
 {
   while (1) {
+    if (dukladne) dukladne--;
+    if (jeni) dukladne = 1;
     pocetpreskocenych = 0;
     if (pocetzmen) dalsikrok ();
-    typkroku = 'r';                   /* realne radky */
+    typkroku = dukladne ? 'R' : 'r';          /* realne radky */
     ll = pocetsloupcu;                             
     for (ii=0; ii<pocetradku; ii++) if (vyresradek () == KO) return KO;
     if (pocetzmen) dalsikrok ();
-    typkroku = 'c';                   /* realne sloupce */
+    typkroku = dukladne ? 'C' : 'c';        /* realne sloupce */
     ll = pocetradku;                             
     for (ii=pocetradku; ii<pocetradku+pocetsloupcu; ii++) 
       if (vyresradek () == KO) return KO;
     if (pocetzmen+pocetzmen2 == 0) {
       if (pocetpreskocenych == 0) {
-	if (projdidukladne () == 0) return OK;
-	else continue;
+	if (dukladne) return OK;
+	else { dukladne = 2;  wlog (3, "\nINTENSIVE:\n", 0); }
+	continue;
       }
       if (limitbloku < MAXBLOKU) {
 	limitbloku = MAXBLOKU;
 	wlog (2, "\n (bl=%d)", limitbloku);
 	continue;
       }
-      if (projdidukladne () == 0) return OK;
+      if (dukladne) return OK;
+      else { dukladne = 2;  wlog (3, "\nINTENSIVE:\n", 0);  }
     }
   }
 }
 
-/* [globradek] Nase pozornost se nyni zameri na funkci vyresradek().
-   Tato funkce pracuje s mnozstvim dalsich globalnich promennych. 
+/* [vyresradek] Funkce se pokusi najit dalsi reseni v ii-tem radku na zaklade
+   zadani (velkosti, barev a poradi bloku na radku) a na zaklade castecneho
+   reseni radku (nektera policka uz mohou byt znama). V dalsim textu
+   "nekonfliktni rozlozeni bloku" bude znamenat takove rozlozeni bloku na 
+   radku, ktere je v souladu jednak se zadanim a jednak s informacemi 
+   o jiz vyresenych polickach na radku.
+
+   Funkce vyresradek() vrati KO, pokud neexistuje zadne nekonfliktni 
+   rozlozeni bloku, jinak vrati OK (nezavisle na tom, zda se funkci podarilo
+   objevit novou informaci na radku nebo ne).
+
+   Funkce se opira o nasledujici funkce, ktere deklarujeme a vysvetlime nize:
+   najdiprvni () ... najde prvni nekonfliktni rozlozeni bloku nebo vrati KO
+   nastavpravolevy () ... nastavi prave a leve nekonfliktni rozlozeni bloku
+                          nebo vrati KO
+   ulozpravolevy () ... ulozi vysledky do pole[] podle praveho a leveho
+                        rozlozeni bloku
+   intensive () ... najde a ulozi vsechny vysledky z intensivniho algoritmu
+
+   Nejprve ve funkci vyresradek() zkoumame, zda ma smysl se radkem
+   vubec zabyvat (cosradkem[ii]==0). Pokud je radek plne vyresen, pak
+   udelame zaverecnou kontrolu nekonfliktnosti reseni a potom
+   zavreme dalsi zkoumani tohoto radku pomoci cosradkem [ii]=0.
+
+   V pripade, ze radek neobsahuje zadny blok, zaneseme do nej mezery
+   individualne, protoze algoritmy najdiprvni () a spol. nejsou na takovou
+   situaci pripraveny.
+
+   Vlastni cinnost funkce vyresradek () vypada takto:
+   1. nastavime pravoleve rozlozeni bloku volanim nastavpravolevy();
+   2. v pripade "dukladne" spustime intensive();
+      jinak ulozime vysledky z pravoleveho nastaveni pomoci ulozpravolevy();
+   3. pricteme sumarni informace "sum.." a nastavime cosradkem[ii] na nulu,
+      ale pri "!dukladne" nastavime na jednicku, protoze intensive() muze najit
+      neco dalsiho.  
+
+   Mozna z historickych duvodu (kdy algoritmus intensive() trval vyrazne dele
+   nez nyni) mame v programu jeste nasledujici optimalizaci: pokud je v radku
+   jediny souvisly usek otazniku, pak mame jistotu, ze kdyz pravolevy algoritmus
+   nic nenasel, tak ani intensivni nic nenajde. Nema tedy smysl intensivni 
+   algoritmus vubec spoustet.  */
+
+int A=0, B=0, C=0, D=0, E=0, F=0;  /* strany sestiuhelnika pro triddlers */
+char radek[MAX(MAXRADKU,MAXSLOUPCU)];  /* stav radku, ktery prave resime */
+
+int vyresradek () 
+{
+  int i, b, ppzmen;
+  
+  if (triddlers && ii == pocetradku+C+D) {
+    pocetzmen2 = pocetzmen;
+    if (pocetzmen) dalsikrok ();
+    typkroku = dukladne ? 'E' : 'e';    /* strany e, f sestiuhelniku */
+  }
+  if (cosradkem[ii]==0 || (cosradkem[ii]==1 && !dukladne)) return OK;
+  if (triddlers) trset(ii);
+  if (vyreseno[ii] == ll) {       /* zaverecna kontrola konzistence */
+    if (kontrolaradku () == KO) return KO;
+    cosradkem [ii] = 0;
+    return OK;
+  }
+  if (pb[ii] > limitbloku)  {  /* zatim tento radek/sloupec preskocime */
+    pocetpreskocenych++;       /* vratime se k nemu pozdeji kvuli */
+    return OK;                 /* optimalizaci rychlosti */
+  }
+  if (dukladne) sumri++ ; 
+  else          sumrr++ ;
+  if (pb[ii]==0) {              /* radek neobsahuje zadny blok */
+    for (i=0; i<ll; i++) radek[i] = rpole (i, 0);
+    if (dvebarvy) {
+      for (i=0; i<ll; i++) if (radek[i]=='?')  ulozprvek (i, 0, bila); 
+    }
+    else {
+      for (i=0; i<ll; i++) if (radek[i]=='?') ulozprvek (i, 0, bila);
+      for (b=1; b<pocetbarev; b++)
+	for (i=0; i<ll; i++) if (radek[i]=='?') spole (i, b, bila); 
+    }
+    return OK;
+  }
+  if (nastavpravolevy ()==KO) return KO;  /* nastavime hodnoty pravoleveho algoritmu */
+  if (llevel>=3) logradekA (1);      
+  ppzmen = pocetzmen;
+  if (dukladne) {                         
+    if (cosradkem[ii]==1 && !jeni) {
+      i = 0;                               /* prozkoumame souvislost otazniku */
+      while (i<ll) if (rpole(i++,0)=='?') break;
+      while (i<ll) if (rpole(i++,0)!='?') break;
+      for (; i<ll; i++) if (rpole(i,0)=='?') break;
+      if (i==ll) { cosradkem[ii] = 0; return OK; } /* jediny blok otazniku */
+    }
+    if(dvebarvy) intensive (0);           /* volame intensivni algoritmus */
+    else for(b=1; b<pocetbarev; b++) intensive (b);
+  }
+  else ulozpravolevy ();                  /* ulozime vysledek pravoleveho algoritmu */
+  if (llevel>=3) logradekB ();
+
+  if (dukladne) cosradkem[ii] = 0;
+  else          cosradkem[ii] = 1;
+  if (ppzmen<pocetzmen)  { 
+    if (dukladne) sumui++; 
+    else sumur++;
+  }
+  return OK;
+}
+
+/* [globradek] Nase pozornost se nyni zameri na funkce najdiprvni(),
+   nastavpravolevy() atd.
+   Tato funkce pracuji s mnozstvim dalsich globalnich promennych. 
    Venujme se proto nyni jejich vyznamu. 
 
    Vetsinu promennych bychom nemuseli deklarovat a pouzivat. Napriklad
    misto np by stacilo vsude psat pb[ii]. Kvuli optimalizaci rychlosti
    se ale vyplati casto pouzivane hodnoty mit v primo adresovatelnych
-   promennych a nevyzvedavat je z pole.
-   */
+   promennych a nevyzvedavat je z pole.  */
 
 int np,              /* pocet bloku aktualniho radku, tj. pb[ii] */
     npp,             /* zkratka za np-1 */
@@ -477,21 +593,18 @@ int vbl[MAXBLOKU],   /* velikost bloku lokalne ii-teho radku, tj. vb[ii][] */
 int p[MAXBLOKU],     /* seznam pocatku bloku pri navrhu rozlozeni bloku */
     pr[MAXBLOKU];    /* druha varianta navrhu rozlozeni bloku v radku */
 
-char radek[MAX(MAXRADKU,MAXSLOUPCU)];  /* stav radku, ktery prave resime */
-
-/* [prvekpole] K prvkum pole[][][] budeme pristupovat pomoci funkce
-   prvekpole(). Tu ztotoznime s vyse uvedenou funkci rpole(), pokud
-   pracujeme s barvami. Pri cernobile verzi je ale casove vyhodnejsi
-   si prekopirovat vysetrovany radek do jednorozmerneho pole radek[]
-   a ptat se na hodnoty do tohoto pole. Neni pak potreba pocitat adresu
-   prvku nasobenim, zatimco pri vyhledani adresy prvku pole[][][]
+/* [prvekpole] K prvkum pole[][][] budeme ve funkci najdiprvni() 
+   pristupovat pomoci funkce prvekpole(). Tu ztotoznime s vyse uvedenou 
+   funkci rpole(), pokud pracujeme s barvami. Pri cernobile verzi je ale 
+   casove vyhodnejsi si prekopirovat vysetrovany radek do jednorozmerneho 
+   pole radek[] a ptat se na hodnoty do tohoto pole. Neni pak potreba pocitat 
+   adresu prvku nasobenim, zatimco pri vyhledani adresy prvku pole[][][]
    nasobit musime.
 
-   V tzv. pravo-levem algoritmu budeme take potrebovat cist radek
+   V pravolevem algoritmu budeme take potrebovat cist radek
    "pozpatku". Pak se vyplati ztotoznit prvekpole() s funkci
    rpolei(), jak za chvili uvidime. Mame tedy dva duvody, proc pouzit
-   trik se ztotoznovanim prvekpole() vhodne funkci. 
-   */
+   trik se ztotoznovanim prvekpole() vhodnou funkci.   */
 
 char (*prvekpole) ();
 
@@ -507,97 +620,26 @@ char rpolei (int i, int b)       /* precte hodnotu z pole pozpatku */
   else     return pole [b*vrstva + (lll-i)*pocetsloupcu + ii-pocetradku];
 }
 
-/* [deklarace2] pro potreby funkce logradek(), ktera tiskne informace
-   o rozlozeni bloku, pripravime nasledujici konstanty.
-   */
+/* [nastavpravolevy]  Funkce nastavi nejprve hodnoty do poli vbl[] atd.
+   pozpatku, funkci prvekpole() ztotozni z rpolei() a zavola najdiprvni(). 
+   Tim ziska v poli p[] prave nekonfliktni rozlozeni bloku.
+   Toto rozlozeni zkopiruje do pole pr[] a nastavi pole vbl[] v normalnim
+   poradi. Znovu zavola najdiprvni() a tim ziska v poli p[] leve
+   nekonfliktni rozlozeni bloku.  */
 
-#define START 1
-#define END   2
-#define ALL   3
-
-/* [vyresradek] Funkce se pokusi najit dalsi reeni v ii-tem radku na zaklade
-   zadani (velkosti, barev a poradi bloku na radku) a na zaklade castecneho
-   reseni radku (nekleta policka uz mohou byt znama). V dalsim textu
-   "nekonfliktni rozlozeni bloku" bude znamenat takove rozlozeni bloku na 
-   radku, ktere je v souladu jednak se zadanim a jednak s informacemi 
-   o jiz vyresenych polickach na radku.
-
-   Funkce vyreasradek() vrati KO, pokud neexistuje zadne nekonfliktni 
-   rozlozeni bloku, jinak vrati OK (nezavisle na tom, zda se funkci podarilo
-   objevit novou informaci na radku nebo ne).
-
-   Nejprve ve funkci zkoumame, zda ma smysl se radkem vubec zabyvat 
-   (cosradkem[ii]==0). Pokud je radek plne vyresen, pak udelame zaverecnou 
-   kontrolu nekonfliktotnosti reseni a potom zavreme dalsi zkoumani tohoto
-   radku pomoci cosradkem [ii]=0.
-
-   Vlastni cinnost funkce je zalozena na tzv. pravo-levem algoritmu.
-   Vyuziva se k tomu funkce najdiprvni(), ktera najde prvni nekonfliktni
-   rozlozeni bloku tak, aby bloky byly pokud mozno co nejvice umisteny vlevo.
-   Vysledek teto funkce je predan v globalni promenne p.
-
-   Pokud nastavime nejprve prvekpole() tak, aby vracel udaje o stavajicim 
-   reseni radku pozpatku a do promennych vbl[], bbl[], vml[], bml[]
-   rovnez ulozime dane bloky v prevracenem poradi, pak nam funkce najdiprvni()
-   najde prvni nekonfliktni rozlozeni bloku tak, aby bloky byly umisteny co 
-   nejvice vlevo. Tyto udaje si zkopirujeme z promenne p[] do promenne pr[]
-   a zavolame najdriprvni() v normalnim rezimu, kdy dostaneme reseni bloku
-   umistene co nejvic vlevo. Nyni staci udelat pruniky bloku se stejnym 
-   indexem a to jsou policke, o kterych vime, ze budou cerna (resp. budou
-   mit konkretni barvu). Take udelame pruniky mezer se stejnym indexem a 
-   mame policka, ktera budou urcite mit barvu pozadi. 
-
-   Tyto informace ulozime do pole pu[][] tak, ze 0 znamena barvu pozadi 
-   (prunik mezer), 2 znamena barvu bloku a 1 znamena nadale nejasne
-   policko. Funkce ulozreseni() pak cte pole pu[][] a vlozi nove inforamce 
-   o polickach pomoci ulozprvek() do pole[][][].
-
-   V zaveru funkce pomoci hodnoty "pocetzmen" pred zavolanim ulozresebni()
-   a po zavolani ulozreseni() zjistime, zda byl pravo-levy algoritmus
-   uspesny, tj. nasel novou informaci. Pokud byl uspesny, pricteme
-   do sumare uspesnych pruchodu jednicku.
-
-   Dale nastavime dukladne [ii] = 1, cosradkem [ii] = 0, tj. 
-   doporucime radek k reseni intenzivnimu algoritmu a zneprstupnime 
-   radek pravo-levemu algoritmu, ktery se k nemu (dokud nenastane 
-   v radku dalsi zmena) nevraci.
-   */
-
-int A=0, B=0, C=0, D=0, E=0, F=0;  /* strany sestiuhelnika pro triddlers */
-
-int vyresradek () 
+int nastavpravolevy ()   
 {
-  int b, k, ni;
-  register int i, j;
-  
-  if (triddlers && ii == pocetradku+C+D) {
-    pocetzmen2 = pocetzmen;
-    if (pocetzmen) dalsikrok ();
-    typkroku = 'e';                   /* strany e, f sestiuhelniku */
-  }
-  if (cosradkem[ii]==0) return OK;
-  if (triddlers) trset(ii);
-  if (vyreseno[ii] == ll) {       /* zaverecna kontrola konzistence */
-    np = pb[ii]; npp = np-1;
-    if (np==0) return OK;
-    for (j=0; j<np; j++) { 
-      vbl[j] = vb[ii][j]; vml[j] = vm[ii][j]; bbl[j] = bb[ii][j];
+  register int i, j; 
+
+  np=pb[ii]; npp=np-1;
+  if (dvebarvy) 
+    for (j=0; j<np; j++) {
+      vbl[j] = vb[ii][npp-j]; 
+      if (j<npp) vml[j] = 1;
+      else       vml[j] = 0;
       bml[j] = 0;
-      if (j>0 && vml[j-1] < 0) vml[j-1] = 0, bml[j] = 1;
     }
-    for (i=0; i<ll; i++) radek[i] = rpole (i, 0);
-    if (najdiprvni () == KO) return KO; 
-    cosradkem [ii] = 0;  dukladne [ii] = 0;
-    return OK;
-  } 
-  if (pb[ii] > limitbloku)  {  /* zatim tento radek/sloupec preskocime */
-    pocetpreskocenych++;       /* vratime se k nemu pozdeji kvuli */
-    return OK;                 /* optimalizaci rychlosti */
-  }
-  sumrr++;
-  for (i=0; i<ll; i++) for (j=0; j<pocetbarev-1; j++) pu[j][i] = 1;
-  sumpu = 0; np=pb[ii]; npp=np-1; 
-  if (np) {
+  else
     for (j=0; j<np; j++) {
       vbl[j] = vb[ii][npp-j]; bbl[j] = bb[ii][npp-j];
       if (j<npp) vml[j] = vm[ii][npp-j-1];
@@ -605,30 +647,59 @@ int vyresradek ()
       bml[j] = 0;
       if (j>0 && vml[j-1] < 0) vml[j-1] = 0, bml[j] = 1;
     }
-    if (dvebarvy) prvekpole = primoradek;
-    else prvekpole = rpolei;
-    lll = ll-1;
-    for (i=0; i<ll; i++) radek[i] = rpolei (i, 0);
-    if (najdiprvni () == KO) return KO; 
+  if (dvebarvy) prvekpole = primoradek;
+  else prvekpole = rpolei;
+  lll = ll-1;
+  for (i=0; i<ll; i++) radek[i] = rpolei (i, 0);
+  if (najdiprvni (0,0) == KO) return KO; 
+  if (dvebarvy)
+    for (j=0; j<np; j++) { 
+      vbl[j] = vb[ii][j]; 
+      if (j<npp) vml[j] = 1;
+      else       vml[j] = 0;
+      bml[j] = 0;
+      pr[j] = ll - p[npp-j] - vbl[j];
+    }
+  else 
     for (j=0; j<np; j++) { 
       vbl[j] = vb[ii][j]; vml[j] = vm[ii][j]; bbl[j] = bb[ii][j];
       bml[j] = 0;
       if (j>0 && vml[j-1] < 0) vml[j-1] = 0, bml[j] = 1;
       pr[j] = ll - p[npp-j] - vbl[j];
     }
-    if (dvebarvy) prvekpole = primoradek;
-    else prvekpole = rpole;
-    for (i=0; i<ll; i++) radek[i] = rpole (i, 0);
-    najdiprvni ();
-    for (j=0; j<np; j++) for (i=pr[j]; i<p[j]+vbl[j]; i++) {
-      if (dvebarvy) pu[0][i] = 2;
-      else pu[bbl[j]-1][i] = 2;
-    }
-    for (i=0; i<p[0]; i++) pu[0][i] = 0;
-    for (i=pr[npp]+vbl[npp]; i<ll; i++) pu[0][i] = 0;
-    if (dvebarvy)
-      for (j=0; j<npp; j++) for (i=pr[j]+vbl[j]; i<p[j+1]; i++)  pu[0][i] = 0; 
-    else for (b=1; b<pocetbarev; b++) {
+  if (dvebarvy) prvekpole = primoradek;
+  else prvekpole = rpole;
+  for (i=0; i<ll; i++) radek[i] = rpole (i, 0);
+  return najdiprvni (0,0);
+}
+
+/* [ulozpravolevy] Nyni jsme v situaci, kdy potrebujeme prave a leve
+   nekonfliktni rozlozeni bloku pouzit k zaneseni vysledku do reseni.
+   Jak to pracuje je nazorne videt pri pouziti parametru -log 4.
+
+   Funkce najde pruniky bloku se stejnymi indexy a to jsou policka, kde
+   je urcite barva bloku. Pak najde pruniky mezer stejnych indexu a to budou
+   urcite mezery. Pruniky mezer ve vicebarevne lustovce delame pro kazdou
+   barvu zvlast a pri te prilezitosti ignorujeme bloky vsech ostatnich barev
+   (jakoby tam nebyly) a zanasime informace pomoci funkce zakazbarvu().  */
+  
+void ulozpravolevy ()
+{
+  int i, j, b, ni;
+
+  if (dvebarvy) {
+    for (j=0; j<np; j++) for (i=pr[j]; i<p[j]+vbl[j]; i++) 
+      if (radek[i]=='?')  ulozprvek (i, 0, cerna); 
+    for (i=0; i<p[0]; i++) if (radek[i]=='?') ulozprvek (i, 0, bila);
+    for (i=pr[npp]+vbl[npp]; i<ll; i++) 
+      if (radek[i]=='?')  ulozprvek (i, 0, bila);
+    for (j=0; j<npp; j++) for (i=pr[j]+vbl[j]; i<p[j+1]; i++) 
+      if (radek[i]=='?')  ulozprvek (i, 0, bila);
+  }
+  else {
+    for (j=0; j<np; j++) for (i=pr[j]; i<p[j]+vbl[j]; i++) 
+      if (radek[i]=='?')  ulozbarvu (i, bbl[j]);
+    for (b=1; b<pocetbarev; b++) {
       i = 0; j = 0;
       while (i<ll) {
 	while (j<np) {
@@ -637,30 +708,50 @@ int vyresradek ()
 	}
 	if (j==np) ni = ll;
 	else       ni = p[j];
-	while (i<ni) pu[b-1][i++] = 0;
+	for (;i<ni;i++) if (rpole(i,b)=='?') zakazbarvu (i, b);
 	if (j<np) i = pr[j] + vbl[j];
 	j++;
       }
     }
-    sumpu = 2;
-    if (llevel>=3) logradek (ALL);
   }
-  k = pocetzmen;
-  ulozreseni ();
-  if (k<pocetzmen)  sumur++;
-  cosradkem [ii] = 0;
-  if (vyreseno[ii] == ll)  dukladne [ii] = 0;
-  else                     dukladne [ii] = 1;
-  return OK;
 }
+
+/* [kontrolaradku]  Muze se stat, ze napr. zmenou v realnem radku
+   doslo k uplnemu vyplneni realneho sloupce (sloupec uz neobsahuje
+   neresena policka). Nevime ale, zda toto vypleni nezpusobilo konflikt
+   se zadanim sloupce. Musime tedy prekontrolovat, zda nedoslo
+   ke konfliktu. Pri "zkousime>1" je tato kontrola velmi dulezita. 
+
+   Funkce kontrolaradku() se pokusi pomoci najdiprvni() najit (v tomto
+   pripade uz jedine) nekonfliktni rozlozeni bloku. Pokud se to nepodari,
+   vrati KO, jinak vrati OK  */
+
+int kontrolaradku ()
+{
+  register int i, j;
+
+  np = pb[ii]; npp = np-1;
+  if (np==0) return OK;
+  for (j=0; j<np; j++) { 
+    vbl[j] = vb[ii][j]; vml[j] = vm[ii][j]; bbl[j] = bb[ii][j];
+    bml[j] = 0;
+    if (j>0 && vml[j-1] < 0) vml[j-1] = 0, bml[j] = 1;
+  }
+  for (i=0; i<ll; i++) radek[i] = rpole (i, 0);
+  return najdiprvni (0,0);
+} 
+
 
 /* [najdiprvni] Funkce najdiprvni() najde prvni nekonfliktni rozlozeni vsech 
    bloku v jednom radku umistene co nejvice vlevo. Pokud zadne takove rozlozeni
    neexistuje, vraci KO. Jinak vraci OK a v p[] mame pocatky jednotlivych bloku.
+   Je to vlastne srdce celeho programu: nejcasteji volana funkce jednak
+   pouzivana pravolevym algoritmem a druhak intensivnim algoritmem. 
 
-   Na zacatku nastavime ukazatel "i" do radku na nulu (prvni policko radku)
-   a pocatek nulteho bloku p[0] zkusime nastavit na toto policko.
-
+   Pri vstupnich parametrech i=0 a j=0 funkce pracuje od zacatku radku 
+   (obvykla situace). Jinak pracuje od j-teho bloku a pokusi se jej umistit
+   na i-te policko radku.
+ 
    Uvnitr cyklu "while (1)" resime umisteni j-teho bloku s tim, ze na zacatku 
    jej umistime na pozici i. Nejprve prekontrolujeme, zda blok neprecniva doprava 
    pres radek, to bychom museli vratit KO. Dale prekontrolujeme, zda nejsou
@@ -696,15 +787,19 @@ int vyresradek ()
    "oopj" je pozice bloku na zacatku cyklu "while (1)". Pokud jsme s blokem pohli
    a soucasne se jedna o blok, ktery musi byt prilepeny ke svemu levemu sousedovi
    (to se vyskytuje u lustovek s trojuhelniky podle obcasniku "Malovane krizovky"
-   z Bratislavy), pak k nemu privolame jeho leveho souseda pomoci posunblok().
-   */
+   z Bratislavy), pak k nemu privolame jeho leveho souseda pomoci posunblok().  */
    
-int najdiprvni ()   /* najde prvni nekonfliktni rozmisteni bloku zleva */
+int najdiprvni (int i, int j)  
 {
   int b, opj, oopj;
-  register int i, j, k;
+  register int k;
 
-  i=0; j=0; 
+  if (i) {
+    for (k=i-1; k>=p[j]; k--) if (radek[k] == '*') {
+      j = posunblok (j-1, k);
+      goto prev;
+    }
+  }
   while (1)  {   /* najdu pozici j-teho bloku */
     if (dvebarvy) b = 0;
     else          b = bbl[j];
@@ -712,6 +807,12 @@ int najdiprvni ()   /* najde prvni nekonfliktni rozmisteni bloku zleva */
   next:
     p[j] = i;
     if ((i = p[j] + vbl[j]) > ll) return KO; 
+    if (j==npp)  /* kontrola mezery vpravo do konce radku */
+      for (k=ll-1; k>=i; k--) 
+	if (radek[k] == '*') {	  
+	  j = posunblok (j, k);
+	  goto prev;
+	}
     while (--i >= p[j]) if (prvekpole (i, b) == ' ') { 
       for (k=i-dvebarvy; k >= p[j]; k--) if (radek [k] == '*') {
 	j = posunblok (j-1, k);
@@ -732,17 +833,8 @@ int najdiprvni ()   /* najde prvni nekonfliktni rozmisteni bloku zleva */
       }
   prev:
     if (j < 0) return KO; 
+    if (j==npp) return OK;
     i = p[j] + vbl[j] + vml[j];
-    if (j==npp) { /* kontrola mezery vpravo do konce radku */
-      for (k=ll-1; k>=i; k--) 
-	if (radek[k] == '*') {	  
-	  j = posunblok (j, k);
-	  break;
-	}
-      if (j<0) return KO;
-      if (j<npp) i = p[j] + vbl[j] + vml[j];
-      else return OK;
-    }
     j++;
   }
 }
@@ -766,8 +858,7 @@ int najdiprvni ()   /* najde prvni nekonfliktni rozmisteni bloku zleva */
    Funkce posunblok() a najdiprvni() jsme se snazili optimalizovat na rychlost.
    Proto zde vidite konstrukce "goto". Verime, ze jsme tim nikoho moc neurazili.
    Pravdepodobne se da funkce najdiprvni() implementovat jeste jinak a efektivneji.
-   Mame urcitou predstavu, ale zatim jsme to nezkouseli...
-   */
+   Mame urcitou predstavu, ale zatim jsme to nezkouseli...   */
 
 int posunblok (int j, int i) /* posune j-ty blok, aby zakryl pozici i */  
 {
@@ -791,54 +882,152 @@ next:
   return j;  
 }
 
-/* [ulozreseni] Tato funkce na zaklade udaju v poli pu[][] ulozi
-   pripadne nova reseni prave prozkoumaneho radku do pole[].  Funkce
-   vola ulozprvek(), ovsem jen tehdy, pokud puvodni stav pole[]
-   obsahuje otaznik. Nedela tedy zmeny, ktere uz jsou udelany.
+/* [intensive] Popiseme intensivni algoritmus.
+   Domnivame se, ze tento algoritmus zatim neni nikde na Internetu
+   publikovan a ze je v tomto zdrojovem kodu zverejnen poprve. 
+   Zname zatim jen takove programy, ktere maji intenzivni algoritmus
+   zalozen na prohledani vsech nekonfliktnich poloh bloku. Ovsem
+   takovych poloh je s*(s-1)*(s-2)*...*(s-n), kde n je pocet bloku
+   a s je stupen volnosti radku. Nas algoritmus na rozdil od tohoto
+   dosahuje slozitost zhruba linearne zavislou na poctu policek
+   v radku, tedy zadny faktorial! Rozdil v rychlostech na rozsahlych
+   lustovkach, ktere si nevystaci s pravolevym algoritmem, je nebetycny.
 
-   Je-li pocet bloku v radku nula, pak se jedna o vyjimku, kdy zaneseme
-   do celeho radku jen barvu pozadi.
+   Autorem algoritmu i jeho implementace ve funkci intensive()
+   je Mirek Olsak.
 
-   Konstanty "cerna" a "bila" oznacuji symboly pro barvu bloku a barvu
-   pozadi, ktere pouzivame ve vrstvach pole[][][].  Jejich implicitni
-   hodnoty '*' a ' ' zmenime na '#' a '-', pokud trasujeme vypocet a
-   chceme vytisknout odlisne nove informace po kazdem kroku (napr. 
-   v rezimu -p). Podrobneji o vyuziti "cerna", "bila" viz [dalsikrok] */
+   Jak to pracuje je patrne pri pouziti parametru -log 4 -i.  
+   Z pravoleveho rozlozeni bloku se dale budeme zabyvat jen pruniky
+   cernych, ktere mohou dat ve vysledku cernou a pruniky mezer, ktere
+   mohou dat mezeru. Jinymi policky se nezabyvame. Dale zuzime nas
+   vyber jen na policka, u kterych dosud mame otaznik.  Pri pruniku
+   cernych zkusime do radku pridat mezeru a testujeme pomoci funkce
+   najdiprvni(), zda to vede ke sporu. Pokud ano, mame jistotu, ze
+   policko je cerne. Pokud neni odhalen spor, pak sice o policku nemuzeme
+   nic prohlasit, ale nekonfliktni rozlozeni bloku z najdiprvni() muzeme
+   proniknout se stavajicim prunikem praveho a leveho rozlozeni a tim
+   zuzit vyber dalsich policek k testovani. Ukazuje se, ze se nevyplati
+   delat kompletni prunik, protoze krome nejblizsiho bloku se ostatni
+   bloky vlevo vetsinou moc nehybaji. Doplnime tedy prunik jen o polohu
+   tohoto nejblizsiho bloku. Totez delame s mezerami. Tj. pokud
+   existuje prunik mezer, zkusime najdiprvni() potrapit doplnenim
+   policka cernou. Vede-li to ke sporu, vime, ze policko obsahuje mezeru.
+   
+   Pri vice barvach se algoritmus musi volat opakovane pro kazdou barvu zvlast.
+   Proto je parametrem funkce cislo barvy, se kterou zrovna pracujeme.
 
-char cerna = '*', bila = ' ';
+   Funkce pracuje s pracovnim polem pp[], ktere obsahuje informace
+   o stavu pruniku daneho policka : 1 .. neni prunik, 3 .. prunik
+   mezer (zkousi se barva), 4 .. prunik barvy (zkousi se mezera), jine
+   hodnoty nejsou vyuzity. Funkce nejprve naplni pole pp[] podle
+   rozlozeni p[] a pr[] (leve a prave nekonfliktni rozlozeni bloku).
+   Pri te prilezitosti ulozi do pole kacko[] cislo bloku, se kterym
+   se bude muset pri testu daneho policka pohnout. Je to blok nejblize 
+   vlevo od daneho policka (pri levem rozlozeni bloku).
 
-void ulozreseni ()  
-{
-  int i, j, k;
+   Dale funkce intensive() prochazi radek odzadu a zkousi konfliktni navrhy.
+   Funkci najdiprvni() kvuli uspore casu vola s nenulovymi parametry.
+   Nakonec ulozi reseni do pole[] pomoci ulozprvek(), ulozbarvu()
+   a zakazbarvu().  */
 
-  if (np) {
-    if (dvebarvy) for (i=0; i<ll; i++) {
-      if (pu [0][i] == sumpu && rpole (i,0) == '?') ulozprvek (i, 0, cerna);
-      if (pu [0][i] == 0 && rpole (i,0) == '?')     ulozprvek (i, 0, bila);
+int kacko[MAX(MAXRADKU,MAXSLOUPCU)];
+char pp[MAX(MAXRADKU,MAXSLOUPCU)];
+
+void intensive (int b)        /* pokus o dukladne vyreseni radku */
+{                                  /* jinak nez brutalni silou */
+  int i, j, j0, j1, k, k0, k1, dopadlo, pom[MAXBLOKU], dotoho;
+  char zn=0;
+
+  for(k=j0=j1=k0=k1=i=0; i<ll; i++){
+    pp[i] = 1;
+    if(k0 && p[k0-1] + vbl[k0-1] == i) j0=0;
+    if(k0!=np && p[k0] == i){
+      k0++;
+      if(dvebarvy || bbl[k0-1]==b){
+	k=k0;
+	j0=1;
+      }
     }
-    else for (i=0; i<ll; i++) { 
-      for (j=1; j<pocetbarev; j++){
-	if (pu [j-1][i] == sumpu && rpole (i,j) == '?') { 
-	  ulozprvek (i, 0, cerna);
-	  ulozprvek (i, j, cerna);
+    if(k1  && pr[k1-1] + vbl[k1-1] == i) j1=0;
+    if(k1!=np && pr[k1] == i){
+      k1++;
+      if(dvebarvy || bbl[k1-1]==b) j1=1;
+    }
+    if(j0==j1 && rpole(i,b)=='?'){
+      pp[i]=3+j0;
+      kacko[i]=k-1;
+    }
+  }
+  for(i=0;i<np;i++) pom[i] = p[i];
+
+  for(i=lll;i>=0;i--){
+    if(pp[i] > 2){      
+      if(kacko[i] > -1){
+	if(pp[i]==3){
+	  radek[i]='*';
+	  if(dvebarvy==0) spole(i,b,'*');
+	  dopadlo=najdiprvni(i-vb[ii][kacko[i]]+1,kacko[i]);
+	  if (llevel >= 4) {
+	    fprintf (logf, "add %c: |%*s#%*s|", barva[b?b:1], i, "", lll-i, "");
+	    zn = '-';
+	  }
 	}
-	if (pu [j-1][i] == 0 && rpole (i,j) == '?')  ulozprvek (i, j, bila);
+	else{
+	  if(dvebarvy) radek[i]=' ';
+	  else spole(i,b,' ');
+	  dopadlo=najdiprvni(i+1,kacko[i]); 
+	  if (llevel >= 4) {
+	    fprintf (logf, "add %c: |%*s-%*s|", barva[b?b:1], i, "", lll-i, "");
+	    zn = '#';
+	  }
+	}
       }
-      if (rpole(i, 0) == '?') {
-	for(k=1; k<pocetbarev; k++)
-	  if(rpole(i, k) != ' ' && rpole(i, k) != '-') break;
-	if(k==pocetbarev) ulozprvek (i, 0, bila);
+      else {
+	dopadlo=KO;
+	if (llevel >= 4) 
+	  fprintf (logf, "add %c: |%*s#%*s|", barva[b?b:1], i, "", lll-i, ""), zn = '-';
       }
+      radek[i]='?';
+      if(dopadlo==OK){
+	if(dvebarvy==0) spole(i,b,'?');
+	if (llevel>=4) fprintf (logf, " OK .. no info\n");
+	if(pp[i]==3){
+	  if(i-vb[ii][kacko[i]]+1 == p[kacko[i]]){
+	    if(kacko[i]==0)dotoho = -1;
+	    else dotoho = p[kacko[i]-1]+vbl[kacko[i]-1];
+	    for(j=i-1;j>dotoho;j--){
+	      if(rpole(j,b)!='?') break;
+	      if(pp[j]==3) pp[j]=1;
+	    }
+	  }
+	}
+	else{
+	  if(kacko[i]==0)dotoho = -1;
+	  else dotoho = p[kacko[i]-1]+vbl[kacko[i]-1];
+	  for(j=i-1;j>dotoho;j--){
+	    if(pp[j]==4) pp[j]=1;
+	  }
+	}
+      }
+      if(dopadlo==KO){
+	if (llevel>=4) fprintf (logf, " KO => r[%d] = %c, found!\n", i, zn);
+	if (zkousime && !dvebarvy) spole(i,b,'?'); /* do pasku musime dat otaznik */
+	if(pp[i]==4) {
+	  if (dvebarvy) ulozprvek (i, 0, cerna);
+	  else          ulozbarvu (i, b);
+	}
+	else  {
+	  if (dvebarvy) ulozprvek  (i, 0, bila);
+	  else          zakazbarvu (i, b);
+	} 
+      }
+      for(j=0;j<np;j++) p[j] = pom[j];
     }
-  } 
-  else for (i=0; i<ll; i++) if (rpole(i,0) == '?') {
-    if (dvebarvy) ulozprvek (i, 0, bila);
-    else for(k=0; k<pocetbarev  ; k++) ulozprvek (i, k, bila);
   }
 }
 
-/* [dalsikrok] Funkce dalsikrok() je volana jedine z funkce vyres()
-   a navic pouze v pripade, ze je "pocetzmen" nenulovy.
+/* [dalsikrok]  Funkce dalsikrok() je volana z funkce vyres() a vyresradek()
+   pouze v pripade, ze je "pocetzmen" nenulovy.
    Funkce dalsikrok() pronuluje "pocetzmen" a zapise na terminal
    cislo a typ prave ukonceneho kroku.
 
@@ -854,10 +1043,9 @@ void ulozreseni ()
    nemuseji zdrzovat podminkou typu 
    "if (prvekpole(i,b)=='*' || prvekpole(i,b)== '#')"
    protoze to by je hodne zdrzovalo. Naopak, uprava pole[]
-   po kazdem kroku pri -p neni problem, protoze pri -p nikam nespechame.
-   */
+   po kazdem kroku pri -p neni problem, protoze pri -p nikam nespechame.  */
 
-long int pruchod = 1;   /* cislo kroku */
+long int pruchod = 1;
 
 void dalsikrok ()
 {
@@ -865,34 +1053,35 @@ void dalsikrok ()
   int ch;
 
   switch (typkroku) {
-  case 'r': sumkr++; 
+  case 'r': sumkr++;
+  case 'R': if(typkroku=='R') sumkR++;
             wlog (3, "\n^^^ End of step %ld: ROWS\n", pruchod);      
 	    break;
-  case 'c': sumkc++; 
+  case 'c': sumkc++;
+  case 'C': if(typkroku=='C') sumkC++;
             wlog (3, "\n^^^ End of step %ld: COLUMNS", pruchod);
 	    if (triddlers) wlog (3, " (C,D)", 0);
 	    wlog (3, "\n", 0);
 	    break;
-  case 'e': sumkc++; 
+  case 'e': sumke++;
+  case 'E': if(typkroku=='E') sumkE++;
             wlog (3, "\n^^^ End of step %ld: COLUMNS (E,F)\n", pruchod);
-	    break;
-  case 'i': sumki++; 
-            wlog (3, "\n^^^ End of step %ld: INTENSIVE\n", pruchod); 
 	    break;
   case 't': sumkt++; 
             wlog (3, "\n^^^ End of step %ld: TEST\n", pruchod);
 	    break;
   }
   if (llevel==2) { 
-    printf (" %ld%c", pruchod, typkroku);
-    fflush (stdout);
+    fprintf (logf, " %ld%c", pruchod, typkroku);
+    fflush (logf);
   }
-  if (paused && paused<=pruchod) { 
-    printpole (1); 
+  if ((paused && paused<=pruchod) || outlevel >=4) printpole (1); 
+  if ((paused && paused<=pruchod) || llevel >=3)
     for (i=0; i<total; i++) {
       if (pole[i] == '#') pole[i] = '*';
       if (pole[i] == '-') pole[i] = ' ';
     }
+  if (paused && paused<=pruchod) {
     printf ("== Enter: next step, ^C: stop, <num>+Enter: pause after <num> steps ==> "); 
     ch = getc (stdin);
     if (ch >= '0' && ch <= '9') {
@@ -908,300 +1097,10 @@ void dalsikrok ()
   pruchod++; 
   if (pruchod == paused || pruchod == steps) cerna = '#', bila = '-';
   if (steps && pruchod > steps) {
-    if (!paused) printpole (1); 
+    if (!paused && outlevel<4) printpole (1);
+    if (logf != outf && logf==stdout) printf ("\n"); 
     exit (0);
   }
-}
-
-/* [projdiukladne] Pokud selze rychly pravo-levy algoritmus, pustime se do
-   dukladneho prochazeni radku. Funkce projdidukladne() vraci 1, pokud
-   se povedlo dukladnym algoritmem najit aspon jednu zmenu. Jinak vraci 0.
-   
-   Protoze je dukladny algoritmus (viz [vyresdukladneradek]) pomerne
-   narocny na cas, vyplati se seradit zobecnene radky podle slozitosti
-   a zkouset pouzit vyresdukladneradek() nejprve na mene slozite
-   radky. Seradime tedy zobecnene radky podle slozitosti a pak
-   postupne volame podle tohoto seznamu funkci vyresdukladneradek().
-   Jakmile se povede najit prvni zmenu, koncime s prochazenim tohoto
-   seznamu (trebaze jsme ho neprosli jeste cely) a vracime 1.
-
-   Otazkou zustava, jak pozname slozitost radku. V tomto bode by se dalo
-   vymyslet urcite neco lepsiho a vypocet tak jeste zrychlit. Zatim mame
-   implementovan velmi jedoduchy vypocet slozitosti, ktery vychazi 
-   z nasledujici uvahy.
-
-   Pokud bychom meli vysetrit vsechny polohy bloku na radku bez zavislosti
-   na tom, co uz mame v radku vyreseno (to intenzivni algoritmus v zasade 
-   dela), pak existuje s*(s-1)*(s-2)*...*(s-n+1) moznosti rozlozeni bloku,
-   kde s je pocet stupnu volnosti v radku (viz "psvradku[]") a n je pocet 
-   bloku. Slozitost by pak mohla byt rovna tomuto cislu. Bohuzel, je velmi 
-   pravdepodobne, ze toto cislo nam prekroci omezeni long long intu a 
-   podobnych promennych. Prechazet na vypocet slozitosti pomoci float se 
-   nam nechtelo. Pokud bychom vzorec zlogaritmovali, pak mame
-   ln s + ln (s-1) + ... + ln (s-n+1), coz uz urcite neprekroci zadne meze.
-   Bohuzel, logaritmovani je pomerne narocna operace na cas, takze pri privreni
-   obou oci misto logaritmu piseme identitu a dostavame vzorec pro vypocet
-   slozitosti: s + s-1 + s-2 + ... + s-n+1 = (2*(n-1)*s - n*n + n)/2.
-   Dvojnasobek tohoto vzorce (ponekud zjedoduseneho) zvetseny o dvojnasobek 
-   nevyresenych policek jsme vzali jako zaklad pro vypocet slozitosti.  
-
-   Je-li v radku jen jediny souvisly blok otazniku, pak plati,
-   ze pokud pravolevy algoritmus na nic neprisel, dukladny algoritmus 
-   take neobjevi nic noveho. Proto v takovem pripade vracime
-   dukladne[ii] = 0 a radkem se nezabyvame.
-   */
-
-int projdidukladne () 
-{
-  int i, j, slozitost, pocetdukladnych;
-  int seznamradku[MAXRADKU+MAXSLOUPCU];   /* seznam radku podle slozitosti */
-
-  pocetdukladnych = 0;
-  for (ii=0; ii<pocetradku+pocetsloupcu; ii++)   /* seradit podle slozitosti */
-    if (dukladne[ii]) {
-      if (ii<pocetradku) ll = pocetsloupcu;
-      else               ll = pocetradku;
-      if (triddlers) trset(ii);
-      i = 0;                               /* prozkoumame souvislost otazniku */
-      while (i<ll) if (rpole(i++,0)=='?') break;
-      while (i<ll) if (rpole(i++,0)!='?') break;
-      for (; i<ll; i++) if (rpole(i,0)=='?') break;
-      if (i==ll) { dukladne[ii] = 0; continue; } /* jediny blok otazniku */
-      slozitost = 
-	 4*(ll-vyreseno[ii]) +  2*pb[ii]*psvradku[ii] - pb[ii]*pb[ii];
-      i = 0;
-      while (i < pocetdukladnych) {
-	if (dukladne [seznamradku[i]] > slozitost) break;
-	i++;
-      }
-      for (j=pocetdukladnych; j>i; j--)  seznamradku [j] = seznamradku [j-1];
-      seznamradku [i] = ii;
-      dukladne [ii] = slozitost; 
-      pocetdukladnych++;
-    }
-  if (pocetdukladnych) { wlog (2, " !", 0); typkroku='i'; }
-  for (i=0; i<pocetdukladnych; i++) {
-    ii = seznamradku [i];
-    if (ii<pocetradku) ll = pocetsloupcu; 
-    else               ll = pocetradku;
-    if (triddlers) trset(ii);
-    cosradkem [ii] = 1; 
-    vyresdukladneradek ();
-    dukladne [ii] = 0;
-    if (pocetzmen) { 
-      sumri += i+1; sumui++;
-      if (llevel==2) wlog (2, "(%d)Y", i+1); 
-      return 1; 
-    }
-  }
-  sumri += pocetdukladnych;
-  if (pocetdukladnych && llevel==2) wlog (2, "(%d)N", pocetdukladnych);
-  return 0;
-}
-
-/* [vyresdukladneradek] Nejprve pronulujeme pu[][] (pole pruniku)
-   a pripravime si hodnoty vysetrovaneho radku do vbl[], vml[], atd.
-   Pak zavolame uz znamou funkci najdiprvni(), ktera vytvori vychozi stav
-   pozic bloku nekonflitkni se stavajicim resenim a co nejvice nalevo.
-
-   Nemusime se bat konfliktu se stavajicim resenim, protoze radek byl
-   uz prekontrolovan pravo-levym algoritmem, ktery v radku nenasel zadne 
-   nove resene policko.
-   
-   Do ppj si ulozime polohu posledniho bloku, pokud je (bez ohledu na
-   stavajici reseni) umisten uplne vpravo. Tuto konstantu budeme 
-   v nasledujicim kroku casto vyuzivat, proto ji zde pocitame jen jednou.
-
-   Pomoci funkce najdidalsi() najdeme vsechny nekonfliktni polohy
-   bloku (vcetne uz pripravene prvni polohy). Funkce ulozi o techto
-   nekonfliktnich polohach informace do pole pruniku pu[][].
-   
-   Nakonec pomoci funkce ulozreseni() ulozime vysledek nasi cinnosti 
-   do pole[][][]. Funkce projdidukladne() pak podle hodnoty
-   "pocetzmen" pozna, zda jsme byli uspesni ci nikoliv.
-
-   Funkce najdidalsi muze najit vice nekonfliktnich poloh bloku, nez je 
-   cislo LIMITPOKUSU. To by teoreticky mohlo vest k prekroceni long intu.
-   Proto funkce v takovem pripade zaveli k ustupu a dalsi pokusy nehleda.
-   My pak pomoci testu "sumpu >= LIMITPOKUSU" zjisitime, zda doslo k teto 
-   situaci a pokud ano, velime rovnez k ustupu bez zaneseni reseni.
-   */
-
-int ppj;
-
-void vyresdukladneradek () 
-{                  
-  int i, j;
-
-  for (i=0; i<ll; i++) for (j=0; j<pocetbarev-1; j++) pu[j][i] = 0;
-  sumpu = 0; np=pb[ii]; npp=np-1;
-  for (j=0; j<np; j++) { 
-    vbl[j] = vb[ii][j]; vml[j] = vm[ii][j]; bbl[j] = bb[ii][j];
-    bml[j] = 0;
-    if (j>0 && vml[j-1] < 0) vml[j-1] = 0, bml[j] = 1;
-  }
-  for (i=0; i<ll; i++) radek[i] = rpole (i, 0);
-  if (llevel>=3) logradek (START);
-  najdiprvni ();
-  ppj = ll - vbl[npp];
-  najdidalsi (0, ll, np); 
-  if (sumpu >= LIMITPOKUSU) return;
-  if (llevel>=3) logradek (END);
-  ulozreseni ();
-}
-
-/* [najdidalsi] je funkce, ktera rekurzivne vola sebe sama.
-   Parametry: "od" ... cislo bloku, od ktereho delame zmeny smerem doprava,
-   "starti" ... doporuceni pro funkci testujradek, odkud staci zkoumat 
-   nekonfliktonst radku. "startb" ... doporuceni pro funkci testujradek, 
-   od ktereho bloku staci zkoumat nekonfliktnost radku.
-
-   Funkce postupne navrhne vsechna mozna rozlozeni bloku pocinaje vychozim 
-   rozlozenim ulozenym v p[] tak, ze postupne s bloky pohybuje smerem 
-   doprava a pro kazde rozlozeni vyvola testujradek(), ktery zjisti, zda je
-   navrh konfliktni vzhledem ke stavajicimu reseni nebo nikoli.
-
-   Princip rekurze: Bloky vlevo od bloku "od" necham beze zmeny.
-   1. Zavolam sam sebe, ovsem parametrem "od" o jedicku vetsim.
-   2. V cyklu "while (1)" posunu s blokem "od" o jednicku doprava
-      (to si obcas vynuti posunuti dalsich bloku v pravo) a pak
-      zavolam sam sebe, ovsem s parametrem "od" o jednicku vetsim.
-      Cyklus "while (1)" opakuji tak dlouho, dokud nenastane konflikt 
-      se stavajicim resenim v mezere vlevo od obloku "od".
-
-   Pokud je "od" poslednim blokem, pak vykonavam vlastni praci:
-   1. Zavolam testujradek() na stavajici rozlozeni bloku.
-   2. V cyklu "while (1)" posunu s posledni blok o jednicku doprava
-      a znovu zavolam testujradek(). Cyklus opakuji tak dlouho,
-      dokud nenastane konflikt s mezerou vlevo od posledniho bloku
-      nebo dokud neprekrocim poslednim blokem pravou hranici radku
-      (viz "if(p[od] > ppj)").
-      
-   Funkce testujradek() vrati cislo bloku nebo cislo mezery, ve kterem 
-   odhalil konflikt se stavajicim resenim. Cislo mezery je odvozeno 
-   od cisla bloku vlevo od mezery. Tj. testujradek muze teoreticky
-   vratit hodnotu -1, pokud je konflikt v mezere vlevo od nulteho bloku.
-   My ve funkci najdidalsi() tuto informaci pomoci promenne konflikt
-   kopirujeme do navratove hodnoty. Pri navratu musime dat do puvodniho stavu
-   vsechny polohy bloku, se kterymi jsme nejak pohybovali. Proto
-   pracujeme s lokalnim polem uloz[].
-
-   Pokud testujradek nenarazi na konflikt, vraci hodnotu MAXBLOKU
-   a navic uklada informaci o rozlozeni bloku do pole pruniku pu[][].
-   */
-
-int najdidalsi (int od, int starti, int startb) 
-{            
-  int uloz[MAXBLOKU], konflikt;
-  register int i;
-
-  while (od < npp && bml[od+1]) od++;
-  if (sumpu >= LIMITPOKUSU) return 0;
-  if (od == npp) {
-    if ((konflikt = testujradek (starti, startb)) < od) return konflikt;
-    if (bml[od]) return MAXBLOKU;
-    i = starti = p[od];
-    while (1) {
-      p[od]++;
-      if (p[od] > ppj) {
-	p[od] = i;
-	return od-1;
-      }
-      if ((konflikt = testujradek (starti++, od)) < od) {
-	p[od] = i;
-	return konflikt;
-      }
-    }
-  }
-  else { 
-    if ((konflikt = najdidalsi (od+1, starti, startb)) < od) return konflikt;
-    for (i=od; i<np; i++) uloz[i] = p[i];
-    starti = p[od];
-    while (1) {
-      for (i=od; i<np; p[i++]++) {
-	if (i < npp) 
-	  if (p[i] + vbl[i] + vml[i] < p[i+1]) { 
-	    p[i]++; break; 
-	  }
-      }
-      if (p[npp] + vbl[npp] > ll) {
-	for (i=od; i<np; i++) p[i] = uloz[i];
-	return od-1;
-      }
-      if ((konflikt = najdidalsi (od+1, starti++, od)) < od) {
-	for (i=od; i<np; i++) p[i] = uloz[i];
-	return konflikt;
-      }	
-    }
-  }
-}
-
-/* [testujradek] spolupracuje uzce s vyse uvedenou funkci najdidalsi().
-   Testuje nekonfliktnost rozlozeni bloku od j-teho bloku a pritom
-   prochazi radek od i-teho policka smerem doprava. Navratove hodnoty 
-   viz [najdidalsi].
-
-   "nz" je nasledujici zacatek bloku nebo konec radku. Nejprve zkoumame
-   nekonfliktnost mezery a jakmile narazime na policko "nz", nastavime
-   d=delka bloku a zkoumame nekonfliktonost bloku. V tomto rezimu pri
-   i++ udelame soucasne d--, takze na konci bloku zacneme bez dlouhych
-   reci znovu zkoumat nekonfliktnost mezery (protoze je d==0).
-
-   Narazime-li na konflikt, vratime index konfliktniho bloku nebo 
-   konfliktni mezery. Nenarazime-li na konflikt, ulozime do pu[][]
-   informaci o dalsim nekonfliktnim reseni a vratime MAXBLOKU.
-
-   Obcas se vyplati velet k ustupu. Napriklad pri sumpu>=LIMITPOKUSU.
-   Take jednou za 500 uspesnych rozlozeni bloku zkousime, zda jeste existuje 
-   neprazdny prunik vsech nekonfliktnich rozlozeni. Pokud ne, pak rovnez
-   velime k ustupu jednoduse tak, ze nastavime sumpu=LIMITPOKUSU.
-
-   Algoritmus najdidalsi() ma bohuzel mocninnou slozitost: zhruba
-   O(s^n), kde "s" je pocet stupnu volnosti radku a "n" je pocet
-   bloku. Pro rozsahle ulohy (radek se stovkami policek a desitkami
-   bloku) je tedy tento algoritmus pomerne nepouzitelny. Mirek ma ideu
-   algoritmu pouze s polynominalni slozitosti, ale je to tak
-   programatorsky komplikovane, ze se mu to zatim nepovedlo
-   implementovat. Az to budeme mit, pak se urcite podelime o tento
-   vysledek v tomto otevrenem zdrojovem kodu.  
-   */
-
-int testujradek (int i, int j)  
-{                              
-  register int b=0, d=0;       
-  int nz;
-
-  if (j<np) nz = p[j];
-  else      nz = ll;
-  for (; i<ll; i++) {
-    if (i==nz) {
-      if (!dvebarvy) b = bbl[j];
-      d = vbl[j++];
-      if (j<np) nz = p[j];
-      else      nz = ll;
-    }
-    if (d) { 
-      d--;
-      if (prvekpole(i,b) == ' ')  return j-1;
-    }
-    else
-      if (prvekpole(i,0) == '*') return j-1;
-  }
-  sumpu++;
-  if (llevel>=4) printbloky (p, "try");
-  if (dvebarvy) { 
-    for (j=0; j<np; j++)
-      for (i=p[j]; i<p[j]+vbl[j]; i++) pu[0][i]++;
-    if ((sumpu % 500) == 0) {     /* zkusime, zda ma smysl pokracovat */
-      for (i=0; i<ll; i++) if (pu[0][i] == 0) return MAXBLOKU;
-      for (i=0; i<ll; i++) if (pu[0][i] == sumpu) return MAXBLOKU;
-      sumpu = LIMITPOKUSU;
-    }    
-  }
-  else
-    for (j=0; j<np; j++)
-      for (i=p[j]; i<p[j]+vbl[j]; i++) pu[bbl[j]-1][i]++;
-  return MAXBLOKU;
 }
 
 /* [main] Podivejme se nyni na problem z druhe strany -- z pohledu hlavniho 
@@ -1215,8 +1114,7 @@ int testujradek (int i, int j)
    vlastniho reseni spustenim funkce vsechnareseni().
 
    Na zaver vypiseme pocet nalezenych reseni a statistiku poctu kroku
-   a poctu vstupu do radkovych algoritmu.
- */
+   a poctu vstupu do radkovych algoritmu.  */
 
 FILE *cmpfile=NULL,   /* soubor zadany pomoci -ini */
      *inifile=NULL,   /* soubor zadany pomoci -cmp */
@@ -1233,7 +1131,7 @@ int main (int argc, char**argv)
   for (k=0; argv[inf][k]!=0 && argv[inf][k]!='.'; k++) buf[k] = argv[inf][k];
   buf [k] = 0;
   if (buf[0] == '-' && buf[1] == 0) strcpy (buf, "stdin");
-  if (paused==1 || steps==1) cerna = '#', bila = '-';
+  if (paused==1 || steps==1 || llevel >= 3) cerna = '#', bila = '-';
   nactiproblem ();
   inipole ();
   if (inifile != NULL) nactipart (inifile);
@@ -1245,17 +1143,17 @@ int main (int argc, char**argv)
   vsechnareseni ();
   if (sumr==0) {
     if (llevel==0) return 2;
-    printpole (0);
-    printf ("\nKO: %s -- the task have NO solution, sorry. ", buf);
+    if (outlevel<4) printpole (0);
+    fprintf (logf, "\nKO: %s -- the task have NO solution, sorry. ", buf);
     if (triddlers) trset(ii);
-    if (ii<pocetradku) printf ("The row");
-    else               printf ("The column");
-    printf (" %d%c includes conflict, for example\n", cisloradku(ii), iityp);
+    if (ii<pocetradku) fprintf (logf, "The row");
+    else               fprintf (logf, "The column");
+    fprintf (logf, " %d%c includes conflict, for example\n", cisloradku(ii), iityp);
     printstatistic ();
   }
   else {
     if (llevel==0) return 0;
-    printf ("\nOK: %s -- the number of solutions is %ld.\n", buf, sumr);
+    fprintf (logf, "\nOK: %s -- the number of solutions is %ld.\n", buf, sumr);
     printstatistic ();
   }
   return 0;
@@ -1294,8 +1192,7 @@ int main (int argc, char**argv)
    sami sebe 
 
    Pro potreby navratu k puvodnimu stavu lustovky pracujeme s polem track[],
-   ktere alokujeme dynamicky.
-   */
+   ktere alokujeme dynamicky.  */
 
 unsigned int *track = NULL;    /* pasek pro navratovou informaci */
 unsigned int trindex = 0,      /* index do pole track[], viz [ulozdopasku] */ 
@@ -1311,11 +1208,12 @@ void vsechnareseni ()
 
   if (vyres ()  == KO) {       /* reseni nenalezeno */
     if (llevel==2) wlog (2, " -", 0);
-    if (llevel >2) {
-      logradek (START);
+    if (llevel>=3) {
+      logradekA (0);
       if (llevel >= 3) {
-	if (ii<pocetradku) printf (".... CONFLICT: row %d %c", cisloradku(ii), iityp);
-	else            printf (".... CONFLICT: column %d %c", cisloradku(ii), iityp);
+	if (ii<pocetradku) fprintf (logf, ".... CONFLICT: row");
+	else               fprintf (logf, ".... CONFLICT: column");
+        fprintf (logf, " %d %c", cisloradku(ii), iityp);
       }
     }
     return;                     
@@ -1329,10 +1227,10 @@ void vsechnareseni ()
     sumr++;                     /* vytiskneme reseni */
     wlog (3, "\n.... SOLUTION number %ld", sumr);
     if (cmpfile != NULL) nactipart (cmpfile);
-    printpole (0);
+    if (outlevel<4) printpole (0);
     if (totalnum && sumr >= totalnum) {
       if (llevel>0) {
-	printf ("\nMaximal number of solutions -total %d reached. I terminate.\n",
+	fprintf (logf, "\nMaximal number of solutions -total %d reached. I terminate.\n",
  		totalnum);
 	printstatistic ();
       }
@@ -1347,9 +1245,10 @@ void vsechnareseni ()
   wlog (2, " ?", 0);
   for (i=0; i<ll; i++) if (rpole (i, 0) == '?') break;
   if (i==ll) { 
-    printf ("Internal error: something wrong???\n"); 
+    fprintf (stderr, "Internal error: something wrong???\n"); 
     printpole(1); 
-    for (i=0; i<pocetradku; i++) printf ("%d\n", vyreseno[i]);
+    fprintf (stderr, "ii=%d\n", ii);
+    for (i=0; i<pocetradku; i++) fprintf (stderr, "%d\n", vyreseno[i]);
     exit (13); 
   }
   backindex = trindex;
@@ -1360,37 +1259,36 @@ void vsechnareseni ()
     if (triddlers) k = pocetradku*maxj;
     for (j=0; j<pocetradku; j++) k -= vyreseno[j];  /* k je pocet otazniku */
     tracktotal = (2+trskip)*k; 
-    if (!dvebarvy) tracktotal *= 2; /* mozna vice zapisu do jednoho policka */
     track = getmemory (tracktotal*sizeof(unsigned int), "track");  
     wlog (2, " track<%ld>", tracktotal);
   }
   zkousime = 1;
   if (dvebarvy) {
-    if (llevel>=2) printf ("\n ' '->[%d,%d]", ii+1, i+1-TR), fflush (stdout);
+    if (llevel>=2) fprintf (logf, "\n ' '->[%d,%d]", ii+1, i+1-TR), fflush (logf);
     ulozprvek (i, 0, bila);
-    cosradkem [ii] = 1; typkroku = 't';
+    cosradkem [ii] = 2; typkroku = 't';
     vsechnareseni ();
     while (trindex>backindex) vemzpasku ();
-    if (llevel>=2) printf ("\n '*'->[%d,%d]", ii+1, i+1-TR), fflush (stdout);
+    if (llevel>=2) fprintf (logf, "\n '*'->[%d,%d]", ii+1, i+1-TR), fflush (logf);
     ulozprvek (i, 0, cerna);
-    cosradkem [ii] = 1; typkroku = 't';
+    cosradkem [ii] = 2; typkroku = 't';
     vsechnareseni ();
     while (trindex>backindex) vemzpasku ();
   }
   else {
     trskip = (pocetbarev-1) / SIZEINT + 1;
-    if (llevel>=2) printf ("\n ' '->[%d,%d]", ii+1, i+1-TR), fflush (stdout);
+    if (llevel>=2) fprintf (logf, "\n ' '->[%d,%d]", ii+1, i+1-TR), fflush (logf);
     ulozprvek (i, 0, bila);
-    for (b=1; b<pocetbarev; b++) spole (i, b, ' ');
-    cosradkem [ii] = 1; typkroku = 't';
+    for (b=1; b<pocetbarev; b++) spole (i, b, bila);
+    cosradkem [ii] = 2; typkroku = 't';
     vsechnareseni ();
     while (trindex>backindex) vemzpasku ();
     for (b=1; b<pocetbarev; b++) if (rpole (i, b) == '?') {
-      if (llevel>=2) printf ("\n '%c'->[%d,%d]", barva[b], ii+1, i+1-TR), fflush (stdout);
+      if (llevel>=2) fprintf (logf, "\n '%c'->[%d,%d]", barva[b], ii+1, i+1-TR), fflush (logf);
       ulozprvek (i, 0, cerna);
-      ulozprvek (i, b, cerna);
+      spole (i, b, cerna);
       for (k=1; k<pocetbarev; k++) if (k!=b) spole (i, k, ' ');
-      cosradkem [ii] = 1; typkroku = 't';
+      cosradkem [ii] = 2; typkroku = 't';
       vsechnareseni ();
       while (trindex>backindex) vemzpasku ();      
     }
@@ -1440,8 +1338,7 @@ void vsechnareseni ()
    lustovek, kdy se k jednomu policku vracime vicekrat, nez jej
    definitivne vyresime. Kazda nova navsteva policka ulozi
    novou informaci v track[]. Proto v pripade potreby zdvojnasobime 
-   velikost track[] novym volanim malloc(). 
-   */
+   velikost track[] novym volanim malloc().   */
 
 void ulozdopasku (int i, int ba)
 {
@@ -1477,8 +1374,7 @@ void ulozdopasku (int i, int ba)
 /* [vemzpasku] Funkce restauruje vzdy jedno policko pole[] na zaklade
    udaju z track[], ktere jsme tam vlozili pomoci ulozdopasku().
    Soucasne funkce snizi trindex tak, aby znovu ukazoval za posledni
-   jeste neprectenou hodnotu v track[].
-   */
+   jeste neprectenou hodnotu v track[].  */
 
 void vemzpasku ()
 {
@@ -1573,8 +1469,7 @@ void vemzpasku ()
 
    Neptejte se, jak jsme na uvedene vzorce prisli. Vyzaduje to nactrnout 
    si sestiuhelnik a spekulovat. Kazdy jednotlivy vzorecek nas stal
-   nezanedbatelnou dobu vyrazneho dusevniho usili.  
-   */
+   nezanedbatelnou dobu vyrazneho dusevniho usili.   */
 
 void trset (int r)
 {
@@ -1643,8 +1538,7 @@ int trj (int k)  /* vrati sloupec pole[][] k-teho prvku radku ii */
    potrebujeme obcas zjistit, jak vypadaji ostatni dve zobecnene radky,
    ktere tento prvek obsahuji. Pokud jde o radek typu a nebo b, tak
    ten zjistime zavolanim funkce tri(). Pro ostatni typy radku (c nebo d,
-   e nebo f) musime naprogramovat nasledujici funkce:
-   */
+   e nebo f) musime naprogramovat nasledujici funkce:  */
 
 int iicd (int k)   /* vrati radek typu c nebo d obsahujici prvek k */
 {
@@ -1673,8 +1567,7 @@ int iief (int k)   /* vrati radek typu e nebo f obsahujici prvek k */
 }
 
 /* [tridulozprvek] Nyni mame vse pripraveno na naprogramovani funkce
-   tridulozprvek(), ktera je analogii funkce ulozprvek(), ale pro triddlers.
-   */
+   tridulozprvek(), ktera je analogii funkce ulozprvek(), ale pro triddlers.  */
 
 void tridulozprvek (int k, int b, char c)
 {
@@ -1689,15 +1582,13 @@ void tridulozprvek (int k, int b, char c)
   case 'E':
   case 'F': x = tri(k);  y = iicd(k);  break;
   }
-  cosradkem[x] = 1;  cosradkem[y] = 1;
-  dukladne [x] = 0;  dukladne [y] = 0;
+  cosradkem[x] = 2;  cosradkem[y] = 2;
   if (b > 0) return;
   vyreseno [ii]++;  vyreseno[x]++;  vyreseno[y]++;
 }
 
 /* [tridmaxll] je funkce, ktera zjisti z parametru triddleru maximalni 
-   delku zobecneneho radku.
-   */
+   delku zobecneneho radku.  */
 
 int tridmaxll ()
 {
@@ -1716,8 +1607,7 @@ int tridmaxll ()
 }
 
 /* [cisloradku] Funkce vrati cislo radku nebo sloupce. V pripade triddlers
-   cisluje podel kazde strany sestiuhelnika zvlast.
-   */
+   cisluje podel kazde strany sestiuhelnika zvlast.  */
 
 int cisloradku (int r)
 {
@@ -1743,19 +1633,22 @@ int cisloradku (int r)
    */
 
 /* [usage][cmdparser] Nasleduje funkce vypisujici pouziti programu a 
-   funkce, ktera precte parametry prikazove radky 
-   */
+   funkce, ktera precte parametry prikazove radky   */
 
 void usage ()
 {
+  printf ("This is program grid version: "); printf (VERSION);
   printf ("\nusage:  grid [options] <file>\n");
   printf ("   where <file> is the input file with the task\n");
   printf ("   options:\n");
   printf ("    -help          ... this text is printed and program terminates\n");
   printf ("    -p <number>    ... start paused mode after <number> steps\n");
   printf ("    -stop <number> ... do only <number> steps, don't solve the whole task\n");
-  printf ("    -log <number>  ... set the verbosity of the output (default: 2)\n");
+  printf ("    -log <number>  ... set the verbosity of the log output (default: 2)\n");
   printf ("    -out <number>  ... the format of solution printing (default: 2)\n");
+  printf ("    -lf <file>     ... log output to <file> instead on stdout\n");
+  printf ("    -of <file>     ... solution output to <file> instead on stdout\n");
+  printf ("    -i             ... run the intensive line-solver only\n");
   printf ("    -ini <file>    ... read partial solution from <file>\n");
   printf ("    -cmp <file>    ... read your partial solution for comparison\n");
   printf ("    -total <number>... maximal printed solutions limited by <number>\n");
@@ -1768,6 +1661,7 @@ void cmdparser (int argc, char**argv)
 {
   int ac=0;
 
+  outf = logf = stdout;
   while (++ac < argc && argv[ac][0] == '-' && argv[ac][1] != 0) 
   switch (argv[ac][1]) {
   case 'p': if (argv[ac][2] != 0) usage ();
@@ -1777,19 +1671,33 @@ void cmdparser (int argc, char**argv)
 	    break;
   case 'c': if (strcmp (argv[ac], "-cmp") != 0) usage ();
             if (++ac >= argc) usage ();
-            cmpfile = openfile (argv[ac]);
+            cmpfile = openfile (argv[ac], "r");
 	    break;
-  case 'i': if (strcmp (argv[ac], "-ini") != 0) usage ();
+  case 'i': if (strcmp (argv[ac], "-ini") != 0) {
+              if (argv[ac][2] != 0) usage ();
+              jeni = 1;
+	      break;
+            }
             if (++ac >= argc) usage ();
-	    inifile = openfile (argv[ac]);
+	    inifile = openfile (argv[ac], "r");
 	    steps = 1;
 	    break;
-  case 'l': if (strcmp (argv[ac], "-log") != 0) usage ();
+  case 'l': if (strcmp (argv[ac], "-log") != 0) {
+              if (strcmp (argv[ac], "-lf")) usage ();
+	      if (++ac >= argc) usage ();
+	      logf = openfile (argv[ac], "w");
+	      break;	      
+            }
             if (++ac >= argc) usage ();
 	    if (argv[ac][0] < '0' || argv[ac][0] > '9') usage();
 	    llevel = atoi (argv[ac]);
 	    break;
-  case 'o': if (strcmp (argv[ac], "-out") != 0) usage ();
+  case 'o': if (strcmp (argv[ac], "-out") != 0) {
+              if (strcmp (argv[ac], "-of")) usage ();
+	      if (++ac >= argc) usage ();
+	      outf = openfile (argv[ac], "w");
+	      break;	      
+            }
             if (++ac >= argc) usage ();
 	    if (argv[ac][0] < '0' || argv[ac][0] > '9') usage();
 	    outlevel = atoi (argv[ac]);
@@ -1814,28 +1722,40 @@ void cmdparser (int argc, char**argv)
 	    if (argv[ac][0] < '0' || argv[ac][0] > '9') usage();
 	    limitbloku = atoi (argv[ac]);
 	    break;
+  case 'I': if (argv[ac][2] != 0) usage ();
+            jeni = 1;
+	    break;    
   default: usage ();
   }
   if (ac != argc-1) usage();
-  mainfile = openfile (argv[ac]);
+  mainfile = openfile (argv[ac], "r");
 }
 
 /* [printstatistic] vytiskne zaverecnou statistiku poctu kroku a poctu
-   vstupu do radkovych algoritmu 
-   */
+   vstupu do radkovych algoritmu   */
 
 void printstatistic ()
 {
-  printf ("    steps %ld(%ldr,%ldc,%ldi,%ldt), lines n:%ld/%ld, i:%ld/%ld\n", 
-	  pruchod-1, sumkr, sumkc, sumki, sumkt, sumur, sumrr, sumui, sumri);
+  char plus[2];
+
+  plus[0]=0, plus[1]=0;
+
+  fprintf (logf, "    steps %ld (",pruchod-1);
+  if(sumkr) fprintf (logf, "%ldr",sumkr), plus[0]='+'; 
+  if(sumkc) fprintf (logf, "%s%ldc", plus, sumkc), plus[0]='+'; 
+  if(sumke) fprintf (logf, "%s%lde", plus, sumke), plus[0]='+'; 
+  if(sumkR) fprintf (logf, "%s%ldR", plus, sumkR), plus[0]='+'; 
+  if(sumkC) fprintf (logf, "%s%ldC", plus, sumkC), plus[0]='+'; 
+  if(sumkE) fprintf (logf, "%s%ldE", plus, sumkE), plus[0]='+';
+  if(sumkt) fprintf (logf, "%s%ldt", plus, sumkt);
+  fprintf (logf, "), lines l-r: %ld/%ld, i: %ld/%ld\n", sumur, sumrr, sumui, sumri);
 }
 
 /* [printpole] Funkce vytiskne reseni. Je-li podrobne==1, pak stav reseni
    neni ukoncen. Ma tedy smysl pri -out >= 3 tisknout jednotlive vrstvy 
    pole[]. Je-li lustovka cernobila, pak pri podrobne==1 vytiskneme
    primy obsah vrstvy 0, protoze tam mohou byt novinky vyznaceny 
-   znakem '#' nebo '-'.
-   */
+   znakem '#' nebo '-'.   */
 
 char jmenobarvy[MAXBAREV+1][MAXDELKASLOVA];  /* jmena barev pro xpm */ 
 
@@ -1845,7 +1765,7 @@ void printpole (int podrobne)
   if (outlevel==0) return;
   if (podrobne && (dvebarvy || outlevel>=3)) {
     for(b=1;b<pocetbarev;b++){
-      if (outlevel>=2 && !dvebarvy) printf ("\nCOLOR: %s", jmenobarvy[b]);
+      if (outlevel>=2 && !dvebarvy) fprintf (outf, "\nCOLOR %c: %s", barva[b], jmenobarvy[b]);
       if (triddlers) tridprintpole (b);
       else           gridprintpole (b);
     }
@@ -1856,112 +1776,108 @@ void printpole (int podrobne)
 }
 
 /* [gridprintpole] vytiskne jednu barevnou vrstvu pole[].
-   Pri b=0 tiskne souhrnou informaci o vsech barvach soucasne.
-   */
+   Pri b=0 tiskne souhrnou informaci o vsech barvach soucasne.  */
 
 void gridprintpole (int b)
 {
   int i, j, jak;
   
   if (outlevel>=2) {
-    if (pocetsloupcu>=10) printf ("\n     ");
-    for (j=1; j<=pocetsloupcu/10; j++) printf ("%10d", 10*j);
-    printf ("\n:::: ");
-    for (j=1; j<=pocetsloupcu; j++) printf ("%d", j%10);
+    if (pocetsloupcu>=10) fprintf (outf, "\n     ");
+    for (j=1; j<=pocetsloupcu/10; j++) fprintf (outf, "%10d", 10*j);
+    fprintf (outf, "\n:::: ");
+    for (j=1; j<=pocetsloupcu; j++) fprintf (outf, "%d", j%10);
   }
-  printf ("\n");
+  fprintf (outf, "\n");
   for (i=0; i<pocetradku; i++) {
     if (outlevel>=2) {
-      if ((i%10)==9)  printf ("%3d: ", (i+1));
-      else            printf ("%3d: ", (i+1)%10);
+      if ((i%10)==9)  fprintf (outf, "%3d: ", (i+1));
+      else            fprintf (outf, "%3d: ", (i+1)%10);
     }
     for (j=0; j<pocetsloupcu; j++){
       if (b) {
-	if (dvebarvy) printf ("%c", pole[IJ]);
-	else printf ("%c", pole[BIJ]);
+	if (dvebarvy) fprintf (outf, "%c", pole[IJ]);
+	else fprintf (outf, "%c", pole[BIJ]);
       } 
       else { 
-	if((jak=jakabarva(i,j)) == -1 ) printf ("?");
-	else if (pole[IJ] == 'x') printf ("#");
-	else if (pole[IJ] == 'X') printf ("-");
-	else printf ("%c", barva[jak]);
+	if((jak=jakabarva(i,j)) == -1 ) fprintf (outf, "?");
+	else if (pole[IJ] == 'x') fprintf (outf, "#");
+	else if (pole[IJ] == 'X') fprintf (outf, "-");
+	else fprintf (outf, "%c", barva[jak]);
       }
     }
-    printf ("\n");
+    fprintf (outf, "\n");
   }
   if (outlevel>=2) { 
-    printf (":::: ");
-    for (j=1; j<=pocetsloupcu; j++) printf ("%d", j%10);
-    if (pocetsloupcu>=10) printf ("\n     ");
-    for (j=1; j<= pocetsloupcu/10; j++) printf ("%10d", 10*j);
-    printf ("\n");
+    fprintf (outf, ":::: ");
+    for (j=1; j<=pocetsloupcu; j++) fprintf (outf, "%d", j%10);
+    if (pocetsloupcu>=10) fprintf (outf, "\n     ");
+    for (j=1; j<= pocetsloupcu/10; j++) fprintf (outf, "%10d", 10*j);
+    fprintf (outf, "\n");
   }
 }
   
-
-/* [tridprintpole] je varianta gridprintpole() pro triddlers
-   */
+/* [tridprintpole] je varianta gridprintpole() pro triddlers  */
 
 void tridprintpole (int b)
 {
   int i, j, d, e, a, jak;
 
   if (outlevel>=2) {
-    printf ("\n      %*s", A+1, "");
-    for (j=F; j>0; j--) printf (" %d", j%10);
-    printf ("\n:::: ");
+    fprintf (outf, "\n      %*s", A+1, "");
+    for (j=F; j>0; j--) fprintf (outf, " %d", j%10);
+    fprintf (outf, "\n:::: ");
   } 
-  else printf ("\n");
+  else fprintf (outf, "\n");
   e = E; d = D; a = 1;
-  printf ("%*s", A+1, "");  rprint (stdout, 2*F+1, '-'); 
-  if (outlevel>=2 && e) printf (" %2d", e--);
-  printf ("\n");
+  fprintf (outf, "%*s", A+1, "");  rprint (outf, 2*F+1, '-'); 
+  if (outlevel>=2 && e) fprintf (outf, " %2d", e--);
+  fprintf (outf, "\n");
   for (i=0; i<pocetradku; i++) {
     trset (i);
     if (outlevel>=2) {
       if (i==A) a = 1;
-      printf ("%3d: ", a++);
+      fprintf (outf, "%3d: ", a++);
     }
-    if (i<A) printf ("%*s/ ", A-i-1, "");
-    else     printf ("%*s\\ ", i-A, "");
+    if (i<A) fprintf (outf, "%*s/ ", A-i-1, "");
+    else     fprintf (outf, "%*s\\ ", i-A, "");
     for (j=tr0; j<tr1; j++) 
       if (b) {
-	if (dvebarvy) printf ("%c", pole[IJ]);
-	else          printf ("%c", pole[BIJ]);
+	if (dvebarvy) fprintf (outf, "%c", pole[IJ]);
+	else          fprintf (outf, "%c", pole[BIJ]);
       }
       else {
-	if((jak=jakabarva(i,j)) == -1 ) printf ("?");
-	else if (pole[IJ] == 'x') printf ("#");
-	else if (pole[IJ] == 'X') printf ("-");
-	else printf ("%c", barva[jak]);
+	if((jak=jakabarva(i,j)) == -1 ) fprintf (outf, "?");
+	else if (pole[IJ] == 'x') fprintf (outf, "#");
+	else if (pole[IJ] == 'X') fprintf (outf, "-");
+	else fprintf (outf, "%c", barva[jak]);
       }
     if (i<E) {
-      printf (" \\");
-      if (outlevel>=2 && e) printf ("%2d", e--);
-      printf ("\n");
+      fprintf (outf, " \\");
+      if (outlevel>=2 && e) fprintf (outf, "%2d", e--);
+      fprintf (outf, "\n");
     }
     else {
-      printf (" /");
-      if (outlevel>=2 && i!=E) printf ("%2d", d--);
-      printf ("\n");
+      fprintf (outf, " /");
+      if (outlevel>=2 && i!=E) fprintf (outf, "%2d", d--);
+      fprintf (outf, "\n");
     }
   }
-  if (outlevel>=2) printf (":::: ");
-  printf ("%*s", B+1, ""); rprint (stdout, 2*C+1, '-'); 
-  if (outlevel>=2) printf (" %2d", d);
-  printf ("\n");
+  if (outlevel>=2) fprintf (outf, ":::: ");
+  fprintf (outf, "%*s", B+1, ""); rprint (outf, 2*C+1, '-'); 
+  if (outlevel>=2) fprintf (outf, " %2d", d);
+  fprintf (outf, "\n");
   if (outlevel>=2) { 
-    printf ("      %*s", B+1, "");
-    for (j=1; j<=C; j++) printf (" %d", j%10);
-    printf ("\n");
+    fprintf (outf, "      %*s", B+1, "");
+    for (j=1; j<=C; j++) fprintf (outf, " %d", j%10);
+    fprintf (outf, "\n");
   }
 }
 
 /* [rprint] je opakujici se print (repeated print).
    Znak c se vytiskne k-krat. navic zvedneme o pocet 
    vytistenych znaku promennou rp, coz se bude hodit
-   pri ukladani do XPM
-   */
+   pri ukladani do XPM  */
 
 int rp;
 
@@ -1975,8 +1891,7 @@ void rprint (FILE *f, int k, char c)
 
 
 /* [jakabarva] Pro potreby printpole() se hodi funkce jakabarva(), ktera
-   vraci index barvy daneho policka pole[][i][j].
-   */
+   vraci index barvy daneho policka pole[][i][j].  */
 
 int jakabarva (int i, int j) 
 {
@@ -1992,110 +1907,99 @@ int jakabarva (int i, int j)
 
 /* [wlog] Funkce na tisk informace pouze pri llevel >= level.
    Pouzivame zde fflush(), protoze na pomalych strojich potrebuje uzivatel
-   videt, ze se neco deje.
-   */
+   videt, ze se neco deje.  */
 
 void wlog (int level, char *s, long int value) 
 {
   if (llevel < level) return;
-  printf (s, value);
-  fflush (stdout);
+  fprintf (logf, s, value);
+  fflush (logf);
 }
 
 /* [printbloky] tiskne rozlozeni bloku pro potreby llevel > 3.
-   Je to velice nazorna logovaci informace, jak pracuji pouzite algoritmy.
-   */
+   Je to velice nazorna logovaci informace, jak pracuji pouzite algoritmy.  */
 
 void printbloky (int * p, char *s) 
 {
-  int i, j, b=0, d;      
+  int i, j, b=1, d;      
   int nz;
 
-  printf ("%5s: |", s);
+  fprintf (logf, "%5s: |", s);
   j = 0; d = 0;
   if (j<np) nz = p[j];
   else      nz = ll;
   for (i=0; i<ll; i++) {
     if (i==nz) {
-      b = bbl[j]; d = vbl[j++]; 
+      if (!dvebarvy) b = bbl[j]; 
+      d = vbl[j++]; 
       if (j<np) nz = p[j];
       else      nz = ll;
     }
     if (d) { 
       d--;
-      printf ("%c", barva[b]);
+      fprintf (logf, "%c", barva[b]);
     }
     else
-      printf (" ");
+      fprintf (logf, " ");
   }
-  printf ("|\n");
+  fprintf (logf, "|\n");
 }
 
-/* [logradek] tiskne stav radku pred a po provedeni algoritmu, pokud uz
-   je znam vysledek algoritmu v poli pu[][], ale jeste nebylo provedeno
-   ulozreseni(). 
+/* [logradekA] tiskne stav radku pred provedenim radkoveho algoritmu.
+   Pri "printlr" navic tiskne stav leveho a praveho rozlozeni bloku. */
 
-   Pri "jak==START" vytiskne jen vstupni informaci o radku,
-   pri "jak==END" vytiskne jen koncove udaje o novem reseni a pri
-   "jak==ALL" tiskne pocatecni udaje, dale vysledek pravo-leveho algoritmu
-   a potom koncove udaje.
-   */
-
-void logradek (int jak)  
+void logradekA (int printlr)  
 {
-  int i, j, new;
+  int i, j;
 
-  if (jak != END) {
-    if (ii < pocetradku) printf ("\nROW: %d %c -- (%d) ", cisloradku(ii), iityp, np);
-    else              printf ("\nCOLUMN: %d %c -- (%d) ", cisloradku(ii), iityp, np);
-
-    printf ("[%d], found=%d, bloks: ", dukladne[ii], vyreseno[ii]);
-    for (j=0; j<np; j++) {
-      printf (" %d", vb[ii][j]);
-      if (!dvebarvy) printf ("%c", barva[bb[ii][j]]);
-    }
-    if (dvebarvy) {
-      printf ("\nin:    |");
-      for (i=0; i<ll; i++) printf ("%c", rpole(i,0));
-      printf ("|");
-    }
-    else for (j=1; j<pocetbarev; j++) {
-      printf ("\nin  %c: |", barva[j]);
-      for (i=0; i<ll; i++) printf ("%c", rpole(i,j));
-      printf ("|");
-    }
-    printf ("\n");
+  if (ii < pocetradku) fprintf (logf, "\nROW:");
+  else                 fprintf (logf, "\nCOLUMN:");
+  fprintf (logf, " %d %c -- (%d) found=%d, bloks: ", cisloradku(ii), iityp, np, vyreseno[ii]);
+  for (j=0; j<np; j++) {
+    fprintf (logf, " %d", vb[ii][j]);
+    if (!dvebarvy) fprintf (logf, "%c", barva[bb[ii][j]]);
   }
-  if (jak == START) return;
-  if (llevel >= 4 && jak==ALL) {
+  if (dvebarvy) {
+    fprintf (logf, "\nin:    |");
+    for (i=0; i<ll; i++) fprintf (logf, "%c", rpole(i,0));
+    fprintf (logf, "|");
+  }
+  else for (j=1; j<pocetbarev; j++) {
+    fprintf (logf, "\nin  %c: |", barva[j]);
+    for (i=0; i<ll; i++) fprintf (logf, "%c", rpole(i,j));
+    fprintf (logf, "|");
+  }
+  fprintf (logf, "\n");
+  if (llevel >= 4 && printlr) {
     printbloky (pr, "right");
     printbloky (p,  "left");
   }
+}
+
+/* [logradekB] tiskne stav radku po provedeni radkoveho algoritmu. */
+
+void logradekB ()  
+{
+  int i, j, new;
+  char zn;
+
   new=0;
   if (dvebarvy) {
-    printf ("out:   |");  
-    for (i=0; i<ll; i++) { 
-      if (rpole(i,0) == '?') {
-	if (pu[0][i] == 0)          { new++; printf("-"); }
-	else if (pu[0][i] == sumpu) { new++; printf("#"); }
-	else printf("?");
-      }
-      else printf ("%c", rpole(i,0));
+    fprintf (logf, "out:   |");  
+    for (i=0; i<ll; i++) {
+      fprintf (logf, "%c", zn=rpole(i,0));
+      if (zn == '#' || zn == '-') new++;
     }
-    printf ("| found news: %d\n", new);
+    fprintf (logf, "| found news: %d\n", new);
   }
   else for (j=1; j<pocetbarev; j++) {
     new = 0;
-    printf ("out %c: |", barva[j]); 
+    fprintf (logf, "out %c: |", barva[j]); 
     for (i=0; i<ll; i++) {
-      if (rpole(i,j) == '?') {
-	if (pu[j-1][i] == 0)          { new++; printf("-"); }
-	else if (pu[j-1][i] == sumpu) { new++; printf("#"); }
-	else printf("?");
-      }
-      else printf ("%c", rpole(i,j));
+      fprintf (logf, "%c", zn=rpole(i,j));
+      if (zn == '#' || zn == '-') new++;
     }
-    printf ("| found news: %d\n", new);
+    fprintf (logf, "| found news: %d\n", new);
   }
 }
 
@@ -2105,8 +2009,7 @@ void logradek (int jak)
 
    Vzhledem k zobecneni u triddlers funkce pracuje s rozsahem
    ii = x..y-1 a to porovnava s radky ii=y..z-1. V pripade 
-   triddlers pak volame tuto funkci dvakrat za sebou.
-   */
+   triddlers pak volame tuto funkci dvakrat za sebou.  */
 
 void testkonzistence (int x, int y, int z) 
 {
@@ -2141,8 +2044,7 @@ int sumabarev (int b)        /* soucet policek barvy b na radku ii */
    Funkce postupne cte dalsi znak pomoci makra NEXTCHAR a uklada jej do 
    globalni promenne "ch". tato promenna je globalni, protoze s ni nepracuje
    funkce nactiproblem() sama, ale casto spolupracuje s dalsimi funkcemi, 
-   jako napr. skipblanks(), skipline() atd.
-   */
+   jako napr. skipblanks(), skipline() atd.  */
 
 #define NEXTCHAR getc (mainfile)
 
@@ -2334,8 +2236,7 @@ start:
    V prvnim pruchodu si funkce poznaci poznamku o lepeni ve tvaru 
    vm[ii][j]=2 a teprve v druhem pruchodu natavuje skutecne velikosti mezer.
    Problem je v tom, ze totiz bloky lepicich trojuhelniku na sebe mohou 
-   navazovat bez mezery, i kdyz jsou stejne.  
-   */
+   navazovat bez mezery, i kdyz jsou stejne.   */
 
 int nactiradek ()
 {
@@ -2390,8 +2291,7 @@ int nactiradek ()
   return j;
 }
 
-/* [formaterror a dalsi] nasleduji pomocne funkce pro nactiproblem()
-   */
+/* [formaterror a dalsi] nasleduji pomocne funkce pro nactiproblem()  */
 
 void formaterror (char *s)  /* pomocna funkce pro nactiproblem() */
 {
@@ -2458,8 +2358,7 @@ int nactibarvu (int jak)      /* vrati cislo barvy */
    rychle poznal, kde se jeho reseni lisi od spravneho.
 
    Pokud neporovnavame, pak jedoduse zanasime udaje ze souboru rovnou 
-   do pole[][][].
-   */
+   do pole[][][].  */
 
 void nactipart (FILE *f)
 {
@@ -2500,7 +2399,7 @@ next:
 		   pole [IJ] = ' ';
 		   if (!dvebarvy) for (b=1; b<pocetbarev; b++) pole [BIJ] = ' ';
 		   vyreseno [i]++;  vyreseno[pocetradku+j]++;
-		   cosradkem [i] = 1; cosradkem [pocetradku+j] = 1;
+		   cosradkem [i] = 2; cosradkem [pocetradku+j] = 2;
 		 }
 		 break;
       case '\n': 
@@ -2522,7 +2421,7 @@ next:
 		 else {
 		   pole [IJ] = '*';
 		   vyreseno [i]++;  vyreseno[pocetradku+j]++;
-		   cosradkem [i] = 1; cosradkem [pocetradku+j] = 1;
+		   cosradkem [i] = 2; cosradkem [pocetradku+j] = 2;
 		 }
       }
       ch = NEXTCHAR;
@@ -2541,8 +2440,7 @@ next:
    v gimpu.
 
    Jestlize existuje pozadavek na trojuhelniky, pak se jedno policko 
-   uklada do XPM jako ctverec o velikosti XPMBLOCK * XPMBLOCK pixelu.
-   */
+   uklada do XPM jako ctverec o velikosti XPMBLOCK * XPMBLOCK pixelu.  */
 
 #define XPMBLOCK  8
 
@@ -2576,7 +2474,7 @@ void savexpm ()   /* ulozi vysledek do xpm formatu */
       }
     if (k==pocetvsechbarev) { /* musime zalozit novou levou barvu */
       if (pocetvsechbarev >= MAXBAREV) {
-	fprintf(stderr,"limit MAXBAREV exceeded during tiangle preparation\n");
+	fprintf (stderr,"limit MAXBAREV exceeded during tiangle preparation\n");
 	return;
       }
       strcpy (jmenobarvy[k], jmenobarvy[i]);
@@ -2596,7 +2494,7 @@ void savexpm ()   /* ulozi vysledek do xpm formatu */
       }
     if (k==pocetvsechbarev) { /* musime zalozit novou pravou barvu */
       if (pocetvsechbarev >= MAXBAREV) {
-	fprintf(stderr,"limit MAXBAREV exceeded during triangle preparation\n");
+	fprintf (stderr,"limit MAXBAREV exceeded during triangle preparation\n");
 	return;
       }
       strcpy (jmenobarvy[k], &jmenobarvy[i][j]);
@@ -2673,12 +2571,11 @@ finish:
     return;
   }
   if (llevel>=2) 
-    printf ("\nThe graphic image of the solution is saved in: %s\n", filename);
+    fprintf (logf, "\nThe graphic image of the solution is saved in: %s\n", filename);
 }
 
 /* [genbarva] vygeneruje pismeno pro potreby XPM, ktere jeste neni v seznamu
-   barva[] pouzito. Pokud se to nepodari, vrati nulu. 
-   */
+   barva[] pouzito. Pokud se to nepodari, vrati nulu.   */
 
 char genbarva (int kmax)
 {
@@ -2727,8 +2624,7 @@ char genbarva (int kmax)
 
    char sil[] = {7, 7, 6, 5, 5, 4, 4, 3, 2, 2, 1, 1};
    char sim[] = {1, 2, 3, 5, 5, 7, 7, 9,10,11,12,13};
-   int siw = 14, sih = 12, ssiw = 7;
-   */
+   int siw = 14, sih = 12, ssiw = 7;   */
 
 char sil[] = {4, 3, 3, 2, 2, 1, 1};
 char sim[] = {1, 3, 3, 5, 5, 7, 7};
@@ -2736,8 +2632,7 @@ int siw = 8, sih = 7, ssiw = 4;
 
 int  si;  /* cislo prave zpracovavaneho radku, si = 0..sih-1 */
 
-/* [tridsavexpm] nahrazuje cast funkce savexpm() pro pripad triddlers.
-   */
+/* [tridsavexpm] nahrazuje cast funkce savexpm() pro pripad triddlers.  */
 
 void tridsavexpm (FILE *f)     /* tisk XPM */
 {
@@ -2783,8 +2678,7 @@ void tridsavexpm (FILE *f)     /* tisk XPM */
 /* [pprint] je pomocna funkce funkci tridsavexpm(). Tiskne k-krat
    znak, ktery vyzvedne z pole[][] z i-teho radku a j-teho sloupce.
    Pokud je j vlevo od prvniho sloupce nebo vpravo od posledniho, pak
-   tiskne k-krat barvu okoli.
-   */
+   tiskne k-krat barvu okoli.  */
 
 void pprint (FILE *f, int i, int j, int k)
 {
@@ -2795,8 +2689,7 @@ void pprint (FILE *f, int i, int j, int k)
 
 /* [system] Nasleduji bezne funkce na ziskani prostredku od systemu.
    Chceme, aby program zkolaboval ve vlastni rezii. Nechceme, aby byl
-   program odstrelen systemem s nic nerikajicim "segmentation fault".
-   */
+   program odstrelen systemem s nic nerikajicim "segmentation fault".  */
 
 void * getmemory (long int i, char *name)
 {
@@ -2809,13 +2702,19 @@ void * getmemory (long int i, char *name)
   return v;
 }
 
-FILE* openfile (char *name) 
+FILE* openfile (char *name, char *mode) 
 {
   FILE *v;
 
-  if (name[0] == '-' && name[1] == 0) return stdin;
-  if ((v = fopen (name, "r")) == NULL) {
-    fprintf (stderr, "cannot open the file %s to reading\n", name);
+  if (name[0] == '-' && name[1] == 0) {
+    if (mode[0] == 'r') return stdin;
+    else                return stdout;
+  }
+  if ((v = fopen (name, mode)) == NULL) {
+    if (mode[0] == 'r') 
+      fprintf (stderr, "cannot open the file %s to reading\n", name);
+    else
+      fprintf (stderr, "cannot open the file %s to writting\n", name);     
     exit (11);
   }
   return v;
